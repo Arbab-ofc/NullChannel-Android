@@ -8,7 +8,7 @@ Do not copy over any existing site's configuration. Check DNS, the installed Nod
 sudo useradd --system --home /srv/nullchannel --shell /usr/sbin/nologin nullchannel
 sudo install -d -o "$USER" -g "$USER" /srv/nullchannel
 cd /srv/nullchannel
-git clone https://github.com/Arbab-ofc/NullChannel.git .
+git clone https://github.com/Arbab-ofc/NullChannel-v2.0.git .
 # For an existing checkout: git pull --ff-only (review local changes first).
 npm ci
 npm run typecheck

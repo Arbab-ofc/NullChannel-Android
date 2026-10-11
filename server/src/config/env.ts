@@ -4,6 +4,7 @@ import { z } from 'zod';
 if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
 
 const envSchema = z.object({
+  BACKGROUND_CLEANUP_ENABLED: z.enum(['true','false']).default('true'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5050),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   CLIENT_URL: z.string().url().refine(value => new URL(value).origin === value, 'Use an exact origin without a trailing slash.'),
@@ -29,6 +30,7 @@ const envSchema = z.object({
   CALL_MAX_CANDIDATES: z.coerce.number().int().min(16).max(512).default(256),
   CALL_MAX_ACTIVE: z.coerce.number().int().min(1).max(10000).default(1000),
   HOST: z.string().default('127.0.0.1'),
+  FRIEND_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   CLEANUP_SECRET: z.string().optional()
 });
 

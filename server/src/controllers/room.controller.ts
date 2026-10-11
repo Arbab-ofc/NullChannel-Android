@@ -34,7 +34,7 @@ export const getRoomController = async (req: Request, res: Response) => {
     return;
   }
   const member = await isActiveMember(room.id, res.locals.identity);
-  res.json(successResponse(member ? room : { code: room.code, room_name: room.room_name, room_type: room.room_type, expires_at: room.expires_at, creator_id: null }));
+  res.json(successResponse(member ? { ...room, ...(res.locals.accountId ? { self_sender_id: res.locals.identity, self_sender_name: res.locals.alias, self_role: res.locals.roomRole } : {}) } : { code: room.code, room_name: room.room_name, room_type: room.room_type, expires_at: room.expires_at, creator_id: null }));
 };
 
 export const getMessagesController = async (req: Request, res: Response) => {

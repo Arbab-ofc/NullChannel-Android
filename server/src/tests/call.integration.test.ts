@@ -220,7 +220,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     // Check both themes and all requested widths, including the 1280px breakpoint.
     for (const theme of ['dark','light']) {
       await b.evaluate(theme => document.documentElement.classList.toggle('light',theme === 'light'),theme);
-      for (const width of [320,375,390,430,768,1024,1280,1440]) {
+      for (const width of [320,360,375,390,414,430,768,1024,1280,1440,1920]) {
         await b.setViewportSize({ width,height: 900 });
         await b.evaluate(() => new Promise<void>(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))));
         expect(await b.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -228,7 +228,8 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
         expect(await b.locator('.chat-expiry').isVisible()).toBe(true);
         const transcriptBounds = await transcript.boundingBox();
         const composerBounds = await b.locator('.chat-composer').boundingBox();
-        expect(transcriptBounds!.height,JSON.stringify({ width,header: await b.locator('.chat-header').boundingBox(),composer: composerBounds,shell: await b.locator('.chat-shell').boundingBox(),children: await b.locator('.chat-workspace').evaluate(element => Array.from(element.children).map(child => ({ tag: child.tagName,cls: child.className,height: child.getBoundingClientRect().height }))) })).toBeGreaterThan(600);
+        // The full touch-accessible composer stays fixed; preserve at least 500px of transcript in this 900px viewport.
+        expect(transcriptBounds!.height,JSON.stringify({ width,header: await b.locator('.chat-header').boundingBox(),composer: composerBounds,shell: await b.locator('.chat-shell').boundingBox(),children: await b.locator('.chat-workspace').evaluate(element => Array.from(element.children).map(child => ({ tag: child.tagName,cls: child.className,height: child.getBoundingClientRect().height }))) })).toBeGreaterThan(500);
         expect(composerBounds!.y+composerBounds!.height).toBeLessThanOrEqual(900);
         expect(transcriptBounds!.y+transcriptBounds!.height).toBeLessThan(composerBounds!.y);
         const phone = await b.getByRole('button',{ name: 'Start voice call',exact: true }).boundingBox();
@@ -268,7 +269,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     await b.emulateMedia({ reducedMotion: 'no-preference' });
     await a.getByRole('button',{ name: 'Start voice call',exact: true }).click();
     await b.getByRole('dialog').waitFor();
-    for (const width of [320,375,390,430,768,1024,1440]) {
+    for (const width of [320,360,375,390,414,430,768,1024,1280,1440,1920]) {
       await b.setViewportSize({ width,height: 900 });
         await b.evaluate(() => new Promise<void>(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))));
       expect(await b.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -299,7 +300,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     expect(await a.evaluate(() => (window as unknown as { __callStreams: MediaStream[] }).__callStreams[0].getAudioTracks()[0].enabled)).toBe(false);
     await a.getByRole('button',{ name: 'Unmute microphone',exact: true }).click();
     expect(await a.evaluate(() => (window as unknown as { __callStreams: MediaStream[] }).__callStreams[0].getAudioTracks()[0].enabled)).toBe(true);
-    for (const width of [320,375,390,430,768,1024,1440]) {
+    for (const width of [320,360,375,390,414,430,768,1024,1280,1440,1920]) {
       await b.setViewportSize({ width,height: 900 });
         await b.evaluate(() => new Promise<void>(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))));
       expect(await b.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -334,7 +335,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     await b.getByText('Designed & developed by',{ exact: false }).waitFor();
     for (const theme of ['dark','light']) {
       await b.evaluate(theme => document.documentElement.classList.toggle('light',theme === 'light'),theme);
-      for (const width of [320,375,390,430,768,1024,1280,1440]) {
+      for (const width of [320,360,375,390,414,430,768,1024,1280,1440,1920]) {
         await b.setViewportSize({ width,height: 900 });
         await b.evaluate(() => new Promise<void>(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))));
         expect(await b.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

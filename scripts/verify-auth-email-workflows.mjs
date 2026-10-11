@@ -1,0 +1,40 @@
+/** Focused real Auth/email and guest verification. No response interception or token logging. */
+import { randomBytes } from 'node:crypto';
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { chromium } from 'playwright';
+
+dotenv.config({path:new URL('../server/.env',import.meta.url),quiet:true});
+const base='http://localhost:5173', out=new URL('../output/playwright/auth-email-retest/',import.meta.url);
+await mkdir(out,{recursive:true});
+const mailbox=process.env.NULLCHANNEL_AUTH_TEST_MAILBOX;
+if(!mailbox)throw new Error('Set a controlled NULLCHANNEL_AUTH_TEST_MAILBOX');
+const nonce=randomBytes(5).toString('hex'), username=`ncauth${nonce}`;
+const [local,domain]=mailbox.split('@');const email=`${local}+${username}@${domain}`;
+const password=`A-${randomBytes(22).toString('base64url')}8!`,newPassword=`B-${randomBytes(22).toString('base64url')}9!`;
+const admin=createClient(process.env.SUPABASE_URL,process.env.SUPABASE_SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+const browser=await chromium.launch({headless:true});const contexts=[],results=[];let accountId,roomCode;
+const check=(value,message)=>{if(!value)throw new Error(message);};
+const record=(workflow,status,evidence)=>{results.push({workflow,status,evidence});console.log(JSON.stringify({workflow,status,evidence}));};
+const state=async(stage)=>writeFile(new URL('state.json',out),JSON.stringify({stage,email,username}),{mode:0o600});
+const waitLink=async(kind)=>{await state(`awaiting-${kind}`);console.log(JSON.stringify({awaitingEmail:kind,testAlias:email}));const deadline=Date.now()+180000;while(Date.now()<deadline){try{const link=(await readFile(new URL(`${kind}.url`,out),'utf8')).trim();await unlink(new URL(`${kind}.url`,out));check(new URL(link).origin===new URL(process.env.SUPABASE_URL).origin,'Email link does not belong to the existing Supabase project');return link;}catch(e){if(e.code!=='ENOENT')throw e;}await new Promise(r=>setTimeout(r,500));}throw new Error(`${kind} mailbox link unavailable; operator email action required`);};
+const makePage=async()=>{const c=await browser.newContext({viewport:{width:390,height:844}});contexts.push(c);return c.newPage();};
+const login=async(page,pass)=>{await page.goto(`${base}/login`);await page.getByLabel('Email').fill(email);await page.locator('input[name="password"]').fill(pass);const pending=page.waitForResponse(r=>r.url().endsWith('/api/account/login'));await page.getByRole('button',{name:'Login',exact:true}).click();return pending;};
+const accountLookup=async()=>{const users=await admin.auth.admin.listUsers({page:1,perPage:1000});check(!users.error,'Auth fixture lookup failed');const user=users.data.users.find(u=>u.email===email);if(user)accountId=user.id;return user;};
+try{
+ const page=await makePage();const adminFixture=process.env.NULLCHANNEL_AUTH_ADMIN_FIXTURE==='1';
+ if(adminFixture){const created=await admin.auth.admin.createUser({email,password,email_confirm:true,user_metadata:{username}});check(!created.error&&created.data.user,'Disposable confirmed fixture creation failed');accountId=created.data.user.id;record('1. Signup → email → confirmation → login','BLOCKED','Real public signup failed at Supabase confirmation-email delivery. Admin-confirmed fixture is only for independent session tests.');}else{await page.goto(`${base}/signup`);await page.locator('input[name="username"]').fill(username);await page.getByLabel('Email',{exact:true}).fill(email);await page.locator('input[name="password"]').fill(password);await page.getByLabel('Confirm password',{exact:true}).fill(password);
+ const signupPending=page.waitForResponse(r=>r.url().endsWith('/api/account/signup'));await page.getByRole('button',{name:'Create account',exact:true}).click();const signup=await signupPending;check(signup.status()===201,`Signup HTTP ${signup.status()}`);await page.getByRole('status').filter({hasText:'Check your email'}).waitFor();
+ const user=await accountLookup();check(user&&!user.email_confirmed_at,'Signup must create an unconfirmed real account');}
+ const profile=await admin.from('profiles').select('username,display_name').eq('id',accountId).single();const privacy=await admin.from('privacy_settings').select('user_id').eq('user_id',accountId).single();check(!profile.error&&profile.data.username===username&&!privacy.error,'Profile or defaults were not created for signup');
+ if(!adminFixture){const confirmation=await waitLink('confirmation');await page.goto(confirmation,{waitUntil:'domcontentloaded'});await page.waitForTimeout(1000);check(new URL(page.url()).origin===base&&new URL(page.url()).pathname==='/login','Confirmation redirect did not reach local /login');const confirmed=await admin.auth.admin.getUserById(accountId);check(Boolean(confirmed.data.user?.email_confirmed_at),'Email link did not confirm Auth identity');}check((await login(page,password)).status()===200,'Confirmed account login failed');await page.waitForURL('**/dashboard');if(!adminFixture)record('1. Signup → email → confirmation → login','PASS','Actual delivered email link confirmed Supabase Auth; React login reached dashboard.');
+ await page.goto(`${base}/forgot-password`);await page.getByLabel('Email',{exact:true}).fill(email);const forgotPending=page.waitForResponse(r=>r.url().endsWith('/api/account/forgot-password'));await page.getByRole('button',{name:'Reset password',exact:true}).click();const forgotStatus=(await forgotPending).status();if(forgotStatus!==200){record('2. Forgot password → email → reset → login','BLOCKED',`Actual recovery request HTTP ${forgotStatus}; Auth email provider unavailable.`);throw new Error('Recovery email blocked by Auth provider');}
+ const recovery=await waitLink('recovery');await page.goto(recovery,{waitUntil:'domcontentloaded'});await page.waitForTimeout(1000);check(new URL(page.url()).origin===base&&new URL(page.url()).pathname==='/reset-password','Recovery redirect did not reach local /reset-password; allow this redirect in Supabase');await page.locator('input[name="password"]').fill(newPassword);await page.getByLabel('Confirm password',{exact:true}).fill(newPassword);const resetPending=page.waitForResponse(r=>r.url().endsWith('/api/account/reset-password'));await page.getByRole('button',{name:'Reset password',exact:true}).click();check((await resetPending).status()===200,'Password reset failed');await page.getByRole('status').filter({hasText:'Password updated'}).waitFor();await page.context().clearCookies();check((await login(page,newPassword)).status()===200,'New password login failed');await page.waitForURL('**/dashboard');await page.context().clearCookies();check((await login(page,password)).status()===401,'Old password still accepted');record('2. Forgot password → email → reset → login','PASS','Actual recovery email opened the local reset page; new password authenticated successfully.');
+}catch(e){record('Authentication sequence',String(e.message).includes('Auth provider')?'BLOCKED':'FAIL',String(e.message??'Verification failed').replace(/https?:\/\/\S+/g,'[URL]'));}
+finally{
+ if(roomCode)await admin.from('rooms').delete().eq('code',roomCode);
+ if(!accountId)await accountLookup().catch(()=>{});
+ if(accountId){const deleted=await admin.auth.admin.deleteUser(accountId);check(!deleted.error,'Disposable Auth cleanup failed');const gone=await admin.from('profiles').select('id').eq('id',accountId).maybeSingle();check(!gone.error&&!gone.data,'Disposable profile cleanup failed');}
+ for(const c of contexts)await c.close();await browser.close();for(const kind of ['confirmation','recovery'])await unlink(new URL(`${kind}.url`,out)).catch(()=>{});await state('completed');await writeFile(new URL('results.json',out),JSON.stringify({results,scopedAccountCleanup:Boolean(accountId)},null,2));console.log(JSON.stringify({completed:true,results,scopedAccountCleanup:Boolean(accountId)}));if(results.some(r=>r.status==='FAIL'))process.exitCode=1;
+}

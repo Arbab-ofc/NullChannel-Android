@@ -1,11 +1,12 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const { rpc, burned } = vi.hoisted(() => ({ rpc: vi.fn(),burned: vi.fn() }));
 vi.mock('../config/supabase.js',() => ({ supabase: { rpc } }));
+vi.mock('../services/avatar.service.js',()=>({recoverAvatarIntents:vi.fn()}));
 vi.mock('../services/media.service.js',() => ({ queueUnusedUpload: vi.fn(),deleteMediaByFileId: vi.fn(),recoverUploadIntents: vi.fn() }));
 vi.mock('../sockets/emitter.js',() => ({ emitMessageBurned: burned }));
 import { messageAvailable, markMessageSeen } from '../services/message.service.js';
 import { cleanupBurnMessages } from '../services/cleanup.service.js';
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {vi.resetAllMocks();rpc.mockResolvedValue({data:[],error:null});});
 it('keeps unseen/non-burn messages available and excludes overdue messages regardless of cleanup delay',() => {
   expect(messageAvailable({})).toBe(true); expect(messageAvailable({ burn_expires_at: null })).toBe(true);
   expect(messageAvailable({ burn_expires_at: new Date(Date.now()+60000).toISOString() })).toBe(true);

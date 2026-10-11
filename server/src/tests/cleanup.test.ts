@@ -6,8 +6,9 @@ const { rpc, from, update, remove, deleteMedia, expired } = vi.hoisted(() => {
   return { rpc: vi.fn(), from: vi.fn(() => ({ update, delete: remove })), update, remove, deleteMedia: vi.fn(), expired: vi.fn() };
 });
 vi.mock('../config/supabase.js', () => ({ supabase: { from, rpc } }));
+vi.mock('../services/avatar.service.js', () => ({ recoverAvatarIntents: vi.fn(async () => undefined) }));
 vi.mock('../services/media.service.js', () => ({ deleteMediaByFileId: deleteMedia, recoverUploadIntents: vi.fn(async () => undefined) }));
-vi.mock('../sockets/emitter.js', () => ({ emitRoomExpired: expired, emitRoomExpiredByCode: expired }));
+vi.mock('../sockets/emitter.js', () => ({ emitRoomExpired: expired, emitRoomExpiredByCode: expired, emitDirectoryUpdated: vi.fn() }));
 import { cleanupExpiredRooms, cleanupRoomsByIds, processMediaCleanup } from '../services/cleanup.service.js';
 beforeEach(() => { vi.clearAllMocks(); });
 describe('durable media and lifecycle cleanup', () => {
@@ -25,6 +26,7 @@ describe('durable media and lifecycle cleanup', () => {
   it('fails closed if queue claiming or room deletion fails', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('database failed') });
     await expect(processMediaCleanup()).rejects.toThrow('database failed'); expect(deleteMedia).not.toHaveBeenCalled();
+    from.mockReturnValueOnce({ select: vi.fn(() => ({ in: vi.fn(async () => ({ data: [{ id: 'room',code: 'TESTROOM' }],error: null })) })) } as never);
     from.mockReturnValueOnce({ delete: vi.fn(() => ({ in: vi.fn(async () => ({ error: new Error('delete failed') })) })) } as never);
     await expect(cleanupRoomsByIds(['room'])).rejects.toThrow('delete failed');
   });

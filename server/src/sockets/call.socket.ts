@@ -1,7 +1,6 @@
+import { socketSessionValid } from './auth.js';
 import { randomUUID } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
-import { readCookie, verifySession } from '../services/session.service.js';
-import { accessCookie } from '../middlewares/auth.middleware.js';
 import { env } from '../config/env.js';
 import { getRoomByCode } from '../services/room.service.js';
 import { getParticipantsForRoom } from '../services/membership.service.js';
@@ -75,8 +74,7 @@ export class CallRegistry {
     const online = [...this.io.sockets.sockets.values()].filter(peer => peer.data.identity === other.sender_id && peer.rooms.has(room.id) && peer.connected);
     const peers: Socket[] = [];
     for (const peer of online.slice(0,8)) {
-      const session = await verifySession(readCookie(peer.request.headers.cookie,accessCookie()));
-      if (session && session.identity_id === peer.data.identity && session.id === peer.data.sessionId && peer.connected && peer.rooms.has(room.id)) peers.push(peer);
+      if (await socketSessionValid(peer) && peer.connected && peer.rooms.has(room.id)) peers.push(peer);
     }
     // No await between these final checks and acquiring both identity locks.
     if (!socket.connected || !socket.rooms.has(room.id) || Date.parse(room.expires_at) <= Date.now()) throw new CallFailure('ROOM_EXPIRED','The room is no longer available.');
@@ -108,8 +106,7 @@ export class CallRegistry {
     const otherId = role === 'caller' ? call.callee.socketId : call.caller.socketId;
     if (otherId) {
       const other = this.io.sockets.sockets.get(otherId);
-      const session = other ? await verifySession(readCookie(other.request.headers.cookie,accessCookie())) : null;
-      if (!other || !session || session.identity_id !== other.data.identity || session.id !== other.data.sessionId) { this.end(callId,'session-ended'); throw new CallFailure('SESSION_EXPIRED','The peer session ended.'); }
+      if (!other || !await socketSessionValid(other)) { this.end(callId,'session-ended'); throw new CallFailure('SESSION_EXPIRED','The peer session ended.'); }
     }
     if (!this.calls.has(callId)) throw new CallFailure('INVALID_CALL','This call has ended.');
     return { call, role };

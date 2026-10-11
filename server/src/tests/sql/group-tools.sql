@@ -1,0 +1,28 @@
+begin;
+insert into auth.users(id,raw_user_meta_data) values('00000000-0000-0000-0000-000000000010','{"username":"fixture_toolsowner"}'),('00000000-0000-0000-0000-000000000011','{"username":"fixture_toolspeer"}');
+do $$ declare a uuid:='00000000-0000-0000-0000-000000000010';b uuid:='00000000-0000-0000-0000-000000000011';j jsonb;rid uuid;sid text;pid uuid;tid uuid;
+begin
+ j:=nc_create_registered(a,'group','Tools fixture','','General','{}',20,15,'TESTTLS1');
+ select id into rid from rooms where code='TESTTLS1';
+ j:=nc_token_create(a,'TESTTLS1',repeat('a',64),10,1);tid:=(j->>'id')::uuid;
+ j:=nc_token_consume(b,repeat('a',64));sid:=j->>'senderId';
+ begin perform nc_token_consume(b,repeat('a',64));raise exception 'Token reused';exception when others then if sqlerrm<>'INVITATION_EXPIRED' then raise;end if;end;
+ j:=nc_poll_action(a,'TESTTLS1','create',null,'Pick one',array['A','B'],null,10);pid:=(j->>'id')::uuid;
+ perform nc_poll_action(b,'TESTTLS1','vote',pid,null,null,0);
+ perform nc_poll_action(b,'TESTTLS1','vote',pid,null,null,1);
+ if (select count(*) from nc_poll_votes where poll_id=pid)<>1 or (select choice from nc_poll_votes where poll_id=pid)<>0 then raise exception 'Duplicate vote';end if;
+ begin perform nc_poll_action(b,'TESTTLS1','close',pid);raise exception 'Unauthorized close';exception when others then if sqlerrm<>'FORBIDDEN' then raise;end if;end;
+ perform nc_moderate(a,'TESTTLS1',sid,'mute',5);
+ begin insert into messages(room_id,sender_id,sender_name,type,content) values(rid,sid,'Ghost','text','fixture');raise exception 'Mute bypass';exception when others then if sqlerrm<>'MUTED' then raise;end if;end;
+ perform nc_moderate(a,'TESTTLS1',sid,'unmute');
+ insert into messages(room_id,sender_id,sender_name,type,content) values(rid,sid,'Ghost','text','fixture');
+ perform nc_moderate(a,'TESTTLS1',sid,'moderator');
+ if (select role from nc_room_identities where room_id=rid and sender_id=sid)<>'moderator' then raise exception 'Role assignment failed';end if;
+ perform nc_moderate(a,'TESTTLS1',sid,'ban');
+ begin perform nc_join_registered(b,'TESTTLS1',true);raise exception 'Ban bypass';exception when others then if sqlerrm<>'ROOM_BANNED' then raise;end if;end;
+ perform nc_poll_action(a,'TESTTLS1','close',pid);
+ delete from rooms where id=rid;
+ if exists(select 1 from nc_polls where room_id=rid) or exists(select 1 from nc_poll_votes where poll_id=pid) or exists(select 1 from nc_room_moderation where room_id=rid) or exists(select 1 from nc_room_invite_tokens where room_id=rid) then raise exception 'Temporary state retained';end if;
+ raise notice 'PASS hashed single-use token, poll single vote, close authorization, mute enforcement, moderator role, room ban, complete ephemeral cascade';
+end $$;
+rollback;

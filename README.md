@@ -1,5 +1,9 @@
 # NullChannel
 
+Connect Permanently. Converse Temporarily.
+
+The registered upgrade is on `feat/nullchannel-v2`. See [implementation status](docs/NULLCHANNEL_FEATURES.md), [current architecture](docs/NULLCHANNEL_ARCHITECTURE.md) and [test evidence](docs/NULLCHANNEL_TESTING.md). Migration history and checksums v13–v22 were verified against the existing Supabase project. Production readiness remains [CONDITIONAL GO](docs/NULLCHANNEL_V2_DEPLOYMENT_READINESS.md); deployment is not authorized.
+
 For the hardened self-managed VPS setup, use [deployment/DEPLOYMENT.md](deployment/DEPLOYMENT.md). The complete verification report is [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md). Apply migrations through v12 before starting this backend; historical localStorage UUIDs are not migrated into authenticated ownership.
 
 
@@ -28,7 +32,7 @@ NullChannel is a temporary chat system for private and group rooms. Users create
 | Backend API     | [Same-origin API](https://nullchannel.teleflow.cyou/api/health)                            |
 | Health check    | [https://nullchannel.teleflow.cyou/api/health](https://nullchannel.teleflow.cyou/api/health)       |
 | Database health | [https://nullchannel.teleflow.cyou/api/health/db](https://nullchannel.teleflow.cyou/api/health/db) |
-| Repository      | [https://github.com/Arbab-ofc/NullChannel](https://github.com/Arbab-ofc/NullChannel)             |
+| Repository      | [https://github.com/Arbab-ofc/NullChannel](https://github.com/Arbab-ofc/NullChannel-v2.0)             |
 
 ## Project Map
 
@@ -202,7 +206,7 @@ NullChannel is a temporary chat system for private and group rooms. Users create
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Arbab-ofc/NullChannel.git
+   git clone https://github.com/Arbab-ofc/NullChannel-v2.0.git
    ```
 2. Move into the project:
    ```bash
@@ -332,7 +336,7 @@ The examples below require a same-origin proxy or compatible same-site arrangeme
 | Platform          | Link                                                          |
 | ----------------- | ------------------------------------------------------------- |
 | GitHub            | [Arbab-ofc](https://github.com/Arbab-ofc)                        |
-| Repository issues | [Open an issue](https://github.com/Arbab-ofc/NullChannel/issues) |
+| Repository issues | [Open an issue](https://github.com/Arbab-ofc/NullChannel-v2.0/issues) |
 | Live project      | [NullChannel](https://nullchannel.teleflow.cyou/)           |
 
 ## Operational Notes
@@ -398,4 +402,3 @@ For credential-free local calls using ordinary Chrome windows and real microphon
 ## UX polish and post-seen burn
 
 See [docs/UX_POLISH.md](docs/UX_POLISH.md) for scroll behavior, recipient viewing semantics, migration v12, verification evidence and the coordinated VPS release/rollback procedure. This branch has not been pushed or deployed.
-# NullChannel-v2.0

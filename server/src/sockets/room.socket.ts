@@ -1,3 +1,4 @@
+import { socketSessionValid } from './auth.js';
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 import { socketMessageSchema } from '../schemas/message.schema.js';
@@ -5,8 +6,7 @@ import { getRoomByCode } from '../services/room.service.js';
 import { getMessageById, saveMessage } from '../services/message.service.js';
 import { isActiveMember, joinMembership, leaveMembership } from '../services/membership.service.js';
 
-import { supabase } from '../config/supabase.js';
-import { emitPresence, revokeRoomSockets } from './emitter.js';
+import { emitPresence, revokeRoomSockets, emitDirectoryUpdated } from './emitter.js';
 import { allowEvent } from './rateLimit.js';
 import { env } from '../config/env.js';
 
@@ -21,6 +21,8 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
   });
   socket.use(async ([event, payload, acknowledgement], next) => {
     try {
+      if (['presence:heartbeat','presence:set'].includes(event) && socket.data.accountId) { next(); return; }
+      if (socket.data.socialOnly) { socket.emit('socket-error',{code:'JOIN_REQUIRED',message:'Open an authorized room connection.'}); return; }
       const limits: Record<string, number> = { 'join-room': env.SOCKET_JOIN_LIMIT, 'send-message': env.SOCKET_MESSAGE_LIMIT, typing: env.SOCKET_TYPING_LIMIT, 'leave-room': 30 };
       const calling = ['call:invite','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end','call:connected','call:reconnecting'].includes(event);
       if (calling && !allowEvent(`${socket.data.identity}:call-packets`,env.CALL_SIGNAL_LIMIT*2)) {
@@ -31,9 +33,11 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       if (!calling && (!limits[event] || !allowEvent(`${socket.data.identity}:${event}`, limits[event]))) {
         socket.emit('socket-error', { code: 'RATE_LIMITED', message: 'Too many events. Please wait.' }); return;
       }
-      const { data, error } = await supabase.from('anonymous_sessions').select('id').eq('id', socket.data.sessionId).is('revoked_at', null).gt('expires_at', new Date().toISOString()).gt('access_expires_at', new Date().toISOString()).maybeSingle();
-      if (error || !data) { socket.emit('socket-error', { code: 'SESSION_EXPIRED', message: 'Renew your session.' }); socket.disconnect(true); return; }
-      if (!calling && payload && typeof payload === 'object' && !Array.isArray(payload)) payload.senderId = socket.data.identity;
+      if (!await socketSessionValid(socket)) { socket.emit('socket-error', { code: 'SESSION_EXPIRED', message: 'Renew your session.' }); socket.disconnect(true); return; }
+      if (!calling && payload && typeof payload === 'object' && !Array.isArray(payload)) {
+        payload.senderId = socket.data.identity;
+        if (socket.data.accountRoom) payload.senderName = socket.data.alias;
+      }
       next();
     } catch { socket.emit('socket-error', { code: 'SESSION_UNAVAILABLE', message: 'Session verification failed.' }); }
   });
@@ -45,11 +49,14 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       const room = await getRoomByCode(parsed.data.roomCode.toUpperCase());
       if (!room) return socket.emit('socket-error', { code: 'ROOM_NOT_FOUND', message: 'Channel not found or expired.' });
       const alreadyActive = await isActiveMember(room.id, socket.data.identity);
-      await joinMembership(room.id, parsed.data.senderId, parsed.data.senderName);
+      if (socket.data.accountRoom) {
+        if (socket.data.accountRoom !== room.id || !alreadyActive) return socket.emit('socket-error',{code:'JOIN_REQUIRED',message:'Join this registered channel first.'});
+      } else await joinMembership(room.id, parsed.data.senderId, parsed.data.senderName);
       await socket.join(room.id);
       await socket.join(`room-code:${room.code}`);
-      socket.emit('room-joined', room);
+      socket.emit('room-joined', { ...room, ...(socket.data.accountRoom ? { self_sender_id: socket.data.identity, self_sender_name: socket.data.alias, self_role: socket.data.roomRole } : {}) });
       await emitPresence(room.id);
+      if(socket.data.accountRoom) emitDirectoryUpdated();
       if (!alreadyActive) {
         socket.to(room.id).emit('user-joined', { senderId: parsed.data.senderId, senderName: parsed.data.senderName, roomCode: room.code });
       }
@@ -93,7 +100,9 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
         fileSize: parsed.data.fileSize,
         mimeType: parsed.data.mimeType,
         replyToMessageId: parsed.data.replyToMessageId,
-        burnAfterRead: parsed.data.burnAfterRead
+        burnAfterRead: parsed.data.burnAfterRead,
+        ttlSeconds: parsed.data.ttlSeconds,
+        viewOnce: parsed.data.viewOnce
       });
 
       io.to(room.id).emit('receive-message', message);
@@ -130,6 +139,7 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       socket.leave(room.id);
       socket.leave(`room-code:${room.code}`);
       await leaveMembership(room.id, parsed.data.senderId);
+      if(socket.data.accountRoom) emitDirectoryUpdated();
       await revokeRoomSockets(room.id, room.code, socket.data.identity);
       socket.to(room.id).emit('user-left', { senderId: parsed.data.senderId, senderName: effectiveName, roomCode: room.code });
     } catch {

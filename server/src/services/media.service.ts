@@ -11,10 +11,11 @@ export const uploadMedia = async (file: Express.Multer.File, folder: string, roo
   const intentId = randomUUID();
   const { error } = await supabase.from('media_upload_intents').insert({ id: intentId, room_id: roomId, sender_id: identity, file_path: `${folder}/${fileName}` });
   if (error) throw error;
-  const uploaded = await imagekit.upload({ file: file.buffer, fileName, folder, useUniqueFileName: false });
-  return { fileUrl: uploaded.url, filePath: uploaded.filePath, fileId: uploaded.fileId, intentId };
+  const uploaded = await imagekit.upload({ file: file.buffer, fileName, folder, useUniqueFileName: false, isPrivateFile: true });
+  return { fileUrl: `/api/media/files/${encodeURIComponent(uploaded.fileId)}`, filePath: uploaded.filePath, fileId: uploaded.fileId, intentId };
 };
-export const deleteMediaByFileId = async (fileId: string) => { await imagekit.deleteFile(fileId); };
+export const providerErrorStatus=(error:unknown)=>{const value=error as {statusCode?:number;$ResponseMetadata?:{statusCode?:number}};return value.statusCode??value.$ResponseMetadata?.statusCode;};
+export const deleteMediaByFileId = async (fileId: string) => { try{await imagekit.deleteFile(fileId);}catch(error){if(providerErrorStatus(error)!==404)throw error;} };
 export const recoverUploadIntents = async () => {
   const { data, error } = await supabase.rpc('claim_upload_intents');
   if (error) throw error;
@@ -46,3 +47,7 @@ export const queueUnusedUpload = async (roomId: string, identity: string, filePa
   const { error } = await supabase.rpc('queue_unused_upload', { p_room: roomId, p_sender: identity, p_path: filePath });
   if (error) logger.error('unused_upload_queue_failed');
 };
+
+export const authorizeMediaDelivery=async(fileId:string,identity:string,open=false)=>{const {data,error}=await supabase.rpc('authorize_media_delivery',{p_file:fileId,p_sender:identity,p_open:open});if(error)throw error;return data?.[0]??null;};
+
+export const consumeMediaDelivery=async(fileId:string,identity:string,open=false)=>{const {data,error}=await supabase.rpc('consume_media_delivery',{p_file:fileId,p_sender:identity,p_open:open});if(error)throw error;return data?.[0]??null;};

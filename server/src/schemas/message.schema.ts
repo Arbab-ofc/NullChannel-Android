@@ -28,11 +28,13 @@ export const socketMessageSchema = z.strictObject({
   senderName: z.string().trim().min(2).max(24).optional(),
   type: z.enum(['text', 'image', 'voice', 'file']),
   content: z.string().trim().max(12000).optional(),
-  fileUrl: z.string().url().optional(),
+  fileUrl: z.string().max(2048).refine(value=>/^\/api\/media\/files\/[A-Za-z0-9_-]{1,128}$/.test(value)||z.url().safeParse(value).success,'Invalid media URL').optional(),
   filePath: z.string().max(512).optional(),
   fileName: z.string().trim().min(1).max(240).optional(),
   fileSize: z.number().int().min(0).max(15 * 1024 * 1024).optional(),
   mimeType: z.string().trim().max(160).optional(),
   replyToMessageId: z.string().uuid().optional(),
-  burnAfterRead: z.boolean().optional()
-}).refine((v) => (v.type === 'text' ? !!v.content : !!v.fileUrl), 'Invalid message payload');
+  burnAfterRead: z.boolean().optional(),
+  ttlSeconds:z.number().int().min(60).max(86400).optional(),
+  viewOnce:z.boolean().optional()
+}).refine(v=>!v.viewOnce||v.type!=='text','View-once is available for media only').refine((v) => (v.type === 'text' ? !!v.content : !!v.fileUrl), 'Invalid message payload');

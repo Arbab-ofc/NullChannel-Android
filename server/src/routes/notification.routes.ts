@@ -1,0 +1,11 @@
+import {Router} from 'express';
+import {z} from 'zod';
+import {requireAccount} from '../middlewares/account.middleware.js';
+import {supabase} from '../config/supabase.js';
+import {errorResponse,successResponse} from '../utils/apiResponse.js';
+const router=Router();router.use('/notifications',requireAccount);
+router.get('/notifications/unread',async(_req,res,next)=>{try{const {count,error}=await supabase.from('account_notifications').select('id',{count:'exact',head:true}).eq('user_id',res.locals.accountId).is('read_at',null).gt('expires_at',new Date().toISOString());if(error)throw error;res.json(successResponse({count:count??0}));}catch(error){next(error);}});
+router.get('/notifications',async(req,res,next)=>{try{const offset=Math.max(0,Math.min(100000,Number(req.query.offset)||0));const {data,error}=await supabase.from('account_notifications').select('id,type,actor_username,reference_id,read_at,created_at,expires_at').eq('user_id',res.locals.accountId).gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).range(offset,offset+49);if(error)throw error;res.json(successResponse(data));}catch(error){next(error);}});
+router.patch('/notifications',async(req,res,next)=>{try{const parsed=z.object({id:z.uuid().optional(),all:z.boolean().optional()}).safeParse(req.body);if(!parsed.success||(!parsed.data.id&&!parsed.data.all)){res.status(400).json(errorResponse('VALIDATION_ERROR','Choose a notification.'));return;}let query=supabase.from('account_notifications').update({read_at:new Date().toISOString()}).eq('user_id',res.locals.accountId);if(parsed.data.id)query=query.eq('id',parsed.data.id);const {error}=await query;if(error)throw error;res.json(successResponse({updated:true}));}catch(error){next(error);}});
+router.delete('/notifications',async(req,res,next)=>{try{const id=req.body?.id??req.query.id;if(!z.uuid().safeParse(id).success){res.status(400).json(errorResponse('VALIDATION_ERROR','Choose a notification.'));return;}const {error}=await supabase.from('account_notifications').delete().eq('user_id',res.locals.accountId).eq('id',id);if(error)throw error;res.json(successResponse({dismissed:true}));}catch(error){next(error);}});
+export default router;

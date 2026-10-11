@@ -1,0 +1,41 @@
+-- Run ONLY in an isolated local test database, after v14. Rolls back all fixtures.
+begin;
+insert into auth.users(id,raw_user_meta_data) values('00000000-0000-0000-0000-000000000001','{"username":"fixture_one"}'),('00000000-0000-0000-0000-000000000002','{"username":"fixture_two"}');
+insert into public.nc_presence(account_id,expires_at) select id,clock_timestamp()+interval '90 seconds' from auth.users;
+do $$ declare a uuid:='00000000-0000-0000-0000-000000000001'; b uuid:='00000000-0000-0000-0000-000000000002'; result jsonb; pid uuid; room_code text; rid uuid;
+begin
+ result:=public.nc_match_start(a);
+ if result->>'state'<>'searching' then raise exception 'Expected searching'; end if;
+ if (select abs(extract(epoch from deadline-clock_timestamp()))>60 from public.nc_match_queue where account_id=a) then raise exception 'Deadline beyond 60s'; end if;
+ -- Deadline boundary uses <= DB clock, never client clock.
+ update public.nc_match_queue set deadline=clock_timestamp() where account_id=a;
+ perform public.nc_match_sweep();
+ if exists(select 1 from public.nc_match_queue where account_id=a) or exists(select 1 from public.rooms where room_kind='match') then raise exception 'Timeout retained queue or room'; end if;
+ perform public.nc_match_start(a);
+ result:=public.nc_match_start(b);pid:=(result->>'proposalId')::uuid;
+ if result->>'state'<>'proposal' then raise exception 'Expected proposal'; end if;
+ if exists(select 1 from public.rooms where room_kind='match') then raise exception 'Premature room'; end if;
+ result:=public.nc_match_respond(a,pid,true,'TESTMAT1');
+ if result->>'state'<>'proposal' then raise exception 'Unilateral acceptance created room'; end if;
+ result:=public.nc_match_respond(b,pid,true,'TESTMAT1');room_code:=result->>'code';
+ if result->>'state'<>'matched' then raise exception 'Mutual acceptance failed'; end if;
+ select id into rid from public.rooms where code=room_code;
+ if exists(select 1 from public.nc_room_identities where sender_id in(a::text,b::text)) then raise exception 'Identity leak'; end if;
+ result:=public.nc_room_consent(a,room_code,'reveal',true);
+ if result->>'mutual'<>'false' or result?'profile' then raise exception 'Unilateral identity leak'; end if;
+ result:=public.nc_room_consent(b,room_code,'reveal',false);
+ if result->>'mutual'<>'false' or result?'profile' then raise exception 'Rejected identity leak'; end if;
+ perform public.nc_room_consent(a,room_code,'connect',true);
+ result:=public.nc_room_consent(b,room_code,'connect',true);
+ if result->>'connected'<>'true' then raise exception 'Connection failed'; end if;
+ delete from public.rooms where id=rid;
+ if exists(select 1 from public.nc_room_identities where room_id=rid) or exists(select 1 from public.nc_room_consents where room_id=rid) then raise exception 'Ephemeral records retained'; end if;
+ if not exists(select 1 from public.friendships where user_low=a and user_high=b) then raise exception 'Friendship destroyed'; end if;
+ perform public.nc_match_cancel(a);perform public.nc_match_cancel(b);
+ delete from public.nc_match_exclusions;
+ insert into public.user_blocks(blocker_id,blocked_id) values(a,b);
+ perform public.nc_match_start(a);result:=public.nc_match_start(b);
+ if result->>'state'<>'searching' then raise exception 'Blocked users matched'; end if;
+ raise notice 'PASS timeout boundary, proposal mutuality, Ghost privacy, rejected reveal, mutual connect, cascading destruction, friendship persistence, block filtering';
+end $$;
+rollback;

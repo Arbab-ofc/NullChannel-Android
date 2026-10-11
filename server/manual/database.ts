@@ -13,8 +13,8 @@ export const createManualDatabase = () => {
   const from = (table: string) => {
     if (!tables.has(table)) throw new Error(`Unsupported local fixture table: ${table}`);
     const filters: Array<(row: Row) => boolean> = [];
-    let mutation: 'insert' | 'update' | 'delete' | undefined; let values: Row[] = []; let maximum = Infinity;
-    let ordering: { field: string; ascending: boolean } | undefined;
+    let mutation: 'insert' | 'update' | 'delete' | undefined; let values: Row[] = []; let maximum = Infinity; let offset = 0;
+    const ordering: Array<{ field: string; ascending: boolean }> = [];
     const execute = (single = false): Result => {
       const rows = tables.get(table)!;
       if (mutation === 'insert') {
@@ -33,8 +33,8 @@ export const createManualDatabase = () => {
         return { data: single ? inserted[0] ?? null : inserted.map(row => ({ ...row })),error: null,count: inserted.length };
       }
       let selected = rows.filter(row => filters.every(filter => filter(row)));
-      if (ordering) { const { field,ascending } = ordering; selected.sort((a,b) => String(a[field]).localeCompare(String(b[field]))*(ascending ? 1 : -1)); }
-      selected = selected.slice(0,maximum);
+      selected.sort((a,b) => { for (const {field,ascending} of ordering) { const compared = String(a[field]).localeCompare(String(b[field])) * (ascending ? 1 : -1); if (compared) return compared; } return 0; });
+      selected = selected.slice(offset,offset+maximum);
       if (mutation === 'update') selected.forEach(row => Object.assign(row,values[0]));
       if (mutation === 'delete') { const deleted = new Set(selected); tables.set(table,rows.filter(row => !deleted.has(row))); }
       return { data: single ? selected[0] ? { ...selected[0] } : null : selected.map(row => ({ ...row })),error: null,count: selected.length };
@@ -45,7 +45,8 @@ export const createManualDatabase = () => {
       is: (field: string,value: unknown) => { filters.push(row => row[field] === value); return query; },
       in: (field: string,values: unknown[]) => { filters.push(row => values.includes(row[field])); return query; },
       gt: (field: string,value: string) => { filters.push(row => String(row[field]) > value); return query; },
-      order: (field: string,options?: { ascending: boolean }) => { ordering = { field,ascending: options?.ascending ?? true }; return query; },
+      order: (field: string,options?: { ascending: boolean }) => { ordering.push({ field,ascending: options?.ascending ?? true }); return query; },
+      range: (start: number,end: number) => { offset = start; maximum = end-start+1; return query; },
       limit: (count: number) => { maximum = count; return query; },
       insert: (value: Row | Row[]) => { mutation = 'insert'; values = Array.isArray(value) ? value : [value]; return query; },
       update: (value: Row) => { mutation = 'update'; values = [value]; return query; },

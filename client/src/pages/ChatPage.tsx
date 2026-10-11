@@ -1,3 +1,9 @@
+import { ViewOnceMedia } from '../components/chat/ViewOnceMedia';
+import { resolveMediaUrl, messageDeadline } from '../lib/temporary-media';
+import { accountSocket } from '../lib/account-socket';
+import { GroupTools } from '../components/chat/GroupTools';
+import { accountApi, accountError } from '../lib/account';
+import { useAccount } from '../hooks/useAccount';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Copy, Link2, Radio, DoorOpen, Power, Rows2, ImagePlus, Menu, X, House, Trash2, Mic, Square, Pencil, Send, TimerReset, Reply, SmilePlus, MoreVertical, Paperclip, FileText, Download, Pin, PinOff, Images, ExternalLink, Siren, Flame } from 'lucide-react';
@@ -20,8 +26,8 @@ import { LoadingSignal } from '../components/common/LoadingSignal';
 type ReactionSummary = { emoji: string; count: number; senders: Array<{ sender_id: string; sender_name: string }> };
 type MessageType = 'text'|'image'|'voice'|'file';
 type ReplyPreview = { id: string; sender_id: string; sender_name?: string; content?: string; type: MessageType; file_url?: string; file_name?: string };
-type Msg = { id?: string; room_id?: string; sender_id: string; sender_name?: string; content?: string; type: MessageType; file_url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; reply_to_message_id?: string | null; reply_to?: ReplyPreview | null; reactions?: ReactionSummary[]; burn_after_read?: boolean; created_at?: string; deleted?: boolean; deleted_by?: string; deleted_by_name?: string; edited?: boolean };
-type Room = { id: string; code: string; creator_id: string; room_type: 'private' | 'group'; room_name: string; expires_at: string; expiry_extended?: boolean; pinned_message_id?: string | null };
+type Msg = { id?: string; room_id?: string; sender_id: string; sender_name?: string; content?: string; type: MessageType; file_url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; reply_to_message_id?: string | null; reply_to?: ReplyPreview | null; reactions?: ReactionSummary[]; burn_after_read?: boolean; burn_expires_at?:string|null;ttl_seconds?:number|null;message_expires_at?:string|null;view_once?:boolean;view_consumed_at?:string|null; created_at?: string; deleted?: boolean; deleted_by?: string; deleted_by_name?: string; edited?: boolean };
+type Room = { id: string; code: string; creator_id: string; room_type: 'private' | 'group'; room_name: string; expires_at: string; expiry_extended?: boolean; pinned_message_id?: string | null; room_kind?: string; self_sender_id?: string; self_sender_name?: string; self_role?: 'owner'|'moderator'|'member' };
 type SystemNotice = { id: string; text: string };
 type TypingPayload = { roomCode?: string; senderId?: string; senderName?: string };
 type Participant = { sender_id: string; sender_name: string; joined_at: string; online?: boolean };
@@ -33,7 +39,17 @@ const REACTION_EMOJIS = ['👍', '😂', '🔥', '❤️', '👀'];
 export default function ChatPage() {
   const { code = '' } = useParams();
   const nav = useNavigate();
-  const senderId = useLocalSender();
+  const guestSenderId = useLocalSender();
+  const [senderId,setSenderId] = useState(guestSenderId);
+  const { profile } = useAccount();
+  const [consentStatus,setConsentStatus] = useState('');
+  useEffect(() => {
+    const changed = (event: {code:string;purpose:string;status:string;profile?:{username:string};connected?:boolean}) => {
+      if (event.code !== code.toUpperCase()) return;
+      setConsentStatus(event.status==='mutual' ? `${event.connected?'Friendship established with':'Identity revealed:'} @${event.profile?.username}` : event.status==='declined' ? 'Your partner chose to remain anonymous.' : `Your partner requested ${event.purpose==='connect'?'to stay connected':'identity reveal'}. Choose explicitly below.`);
+    };
+    accountSocket.on('identity:consent',changed); return () => {accountSocket.off('identity:consent',changed);};
+  },[code]);
   const socket = useSocket(code);
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -55,6 +71,7 @@ export default function ChatPage() {
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
   const [reactionBusyIds, setReactionBusyIds] = useState<Record<string, boolean>>({});
   const [burnAfterReadMode, setBurnAfterReadMode] = useState(false);
+  const [ttlSeconds,setTtlSeconds]=useState(0);const [viewOnce,setViewOnce]=useState(false);
   const [notices, setNotices] = useState<SystemNotice[]>([]);
   const [toast, setToast] = useState('');
   const [nameInput, setNameInput] = useState('');
@@ -118,14 +135,14 @@ export default function ChatPage() {
   const loadMyRooms = useCallback(async () => {
     setRoomsLoading(true);
     try {
-      const res = await api.get(`/users/${senderId}/rooms`);
-      const rooms = res.data.data ?? [];
+      const res = profile ? await accountApi.get('/registered/rooms') : await api.get(`/users/${senderId}/rooms`);
+      const rooms = profile ? (res.data.data ?? []).map((entry: { rooms: Room }) => entry.rooms) : res.data.data ?? [];
       setMyRooms(rooms);
       return rooms as Array<{ code: string; room_name?: string; room_type?: 'private' | 'group'; expires_at: string }>;
     } finally {
       setRoomsLoading(false);
     }
-  }, [senderId]);
+  }, [senderId,profile]);
 
   const loadParticipants = useCallback(async (roomCode: string) => {
     setParticipantsLoading(true);
@@ -164,8 +181,9 @@ export default function ChatPage() {
       const roomRes = await api.get(`/rooms/${code.toUpperCase()}`, { signal: abort.signal });
       if (cancelled) return;
       const roomData = roomRes.data.data as Room;
+      if (roomData.self_sender_id && roomData.self_sender_id !== senderId) { setSenderId(roomData.self_sender_id); return; }
       setRoom(roomData);
-      const cached = sessionStorage.getItem(`nullchannel_name_${roomData.code}`) ?? '';
+      const cached = roomData.self_sender_name ?? sessionStorage.getItem(`nullchannel_name_${roomData.code}`) ?? '';
       setSenderName(cached);
       setNameInput(cached);
       const rooms = await loadMyRooms();
@@ -422,7 +440,8 @@ export default function ChatPage() {
       type: 'text',
       content: text.trim(),
       replyToMessageId: replyingTo?.id,
-      burnAfterRead: burnAfterReadMode
+      burnAfterRead: burnAfterReadMode,
+      ...(ttlSeconds?{ttlSeconds}: {})
     });
     setText('');
     setReplyingTo(null);
@@ -460,10 +479,12 @@ export default function ChatPage() {
         senderId,
         senderName: senderName || undefined,
         type: 'image',
+        viewOnce,
         fileUrl: res.data.data.fileUrl,
         filePath: res.data.data.filePath,
         replyToMessageId: replyingTo?.id,
-        burnAfterRead: burnAfterReadMode
+        burnAfterRead: burnAfterReadMode,
+      ...(ttlSeconds?{ttlSeconds}: {})
       });
       setReplyingTo(null);
     } catch {
@@ -497,6 +518,7 @@ export default function ChatPage() {
         senderId,
         senderName: senderName || undefined,
         type: 'file',
+        viewOnce,
         content: file.name,
         fileUrl: res.data.data.fileUrl,
         filePath: res.data.data.filePath,
@@ -504,7 +526,8 @@ export default function ChatPage() {
         fileSize: file.size,
         mimeType: file.type || 'application/octet-stream',
         replyToMessageId: replyingTo?.id,
-        burnAfterRead: burnAfterReadMode
+        burnAfterRead: burnAfterReadMode,
+      ...(ttlSeconds?{ttlSeconds}: {})
       });
       setReplyingTo(null);
       showToast('File sent');
@@ -534,10 +557,12 @@ export default function ChatPage() {
         senderId,
         senderName,
         type: 'voice',
+        viewOnce,
         fileUrl: res.data.data.fileUrl,
         filePath: res.data.data.filePath,
         replyToMessageId: replyingTo?.id,
-        burnAfterRead: burnAfterReadMode
+        burnAfterRead: burnAfterReadMode,
+      ...(ttlSeconds?{ttlSeconds}: {})
       });
       setReplyingTo(null);
       showToast('Voice sent');
@@ -785,6 +810,7 @@ export default function ChatPage() {
 
   const terminateRoom = async () => {
     if (!room || terminateBusy) return;
+    if (!window.confirm('End this temporary room now? Its messages and attachments cannot be restored.')) return;
     setTerminateBusy(true);
     try {
       await api.post(`/rooms/${room.code}/terminate`, { senderId });
@@ -817,13 +843,24 @@ export default function ChatPage() {
     }
   };
 
+  useEffect(()=>{
+    const deadlines=messages.filter(message=>!message.deleted&&message.id).map(messageDeadline).filter((value):value is number=>value!==null);
+    if(!deadlines.length)return;const earliest=Math.min(...deadlines);
+    const timer=window.setTimeout(()=>{
+      const expired=new Set(messages.filter(message=>{const deadline=messageDeadline(message);return deadline!==null&&deadline<=Date.now();}).map(message=>message.id).filter((id):id is string=>!!id));
+      expired.forEach(id=>{removedMessageIds.current.add(id);dirtyMessageIds.current.add(id);});
+      setMessages(current=>current.filter(message=>!message.id||!expired.has(message.id)).map(message=>message.reply_to_message_id&&expired.has(message.reply_to_message_id)?{...message,reply_to:null}:message));
+      setReplyingTo(current=>current?.id&&expired.has(current.id)?null:current);setReactionPickerMessageId(current=>current&&expired.has(current)?null:current);setMessageMenuId(current=>current&&expired.has(current)?null:current);
+    },Math.max(0,earliest-Date.now())+10);return()=>window.clearTimeout(timer);
+  },[messages]);
+
   const typingNames = Object.values(typingUsers);
   const typingLabel = typingNames.length > 1 ? `${typingNames.slice(0, 2).join(', ')} are typing` : `${typingNames[0] ?? 'Someone'} is typing`;
   const recordingTime = `${Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:${(recordingSeconds % 60).toString().padStart(2, '0')}`;
   const deletedText = (message: Msg) => `${message.deleted_by === senderId ? 'You' : (message.deleted_by_name ?? 'A member')} deleted this transmission.`;
   const reactionTarget = reactionPickerMessageId ? messages.find((message) => message.id === reactionPickerMessageId) : null;
   const pinnedMessage = room?.pinned_message_id ? messages.find((message) => message.id === room.pinned_message_id && !message.deleted) : null;
-  const imageMessages = messages.filter((message) => !message.deleted && message.type === 'image' && message.file_url);
+  const imageMessages = messages.filter((message) => !message.deleted && !message.view_once && message.type === 'image' && message.file_url);
   const closeCopy = closeReason === 'terminated-by-creator'
     ? {
       eyebrow: 'ROOM TERMINATED',
@@ -1001,6 +1038,21 @@ export default function ChatPage() {
           </div>
         ))}
         {messages.length === 0 && <div className="border-2 border-dashed border-accent/60 p-5 text-sm text-muted">No transmissions yet. Send the first message.</div>}
+        {room.room_kind && room.room_kind !== 'guest' && <details className="border border-accent p-3 my-3"><summary>Report a participant</summary><p className="text-sm text-muted">Reports store a reason and account references for 7 days. No message bodies or attachments are retained.</p><form className="flex flex-wrap gap-2 mt-3" onSubmit={event => {event.preventDefault();const data=new FormData(event.currentTarget);void accountApi.post(`/registered/rooms/${room.code}/report`,{senderId:data.get('senderId'),reason:data.get('reason')}).then(()=>setConsentStatus('Report submitted. No conversation evidence was stored.')).catch(error=>setConsentStatus(accountError(error)));}}><label>Participant<select required name="senderId" className="block bg-panel border border-accent p-2"><option value="">Choose participant</option>{participants.filter(p=>p.sender_id!==senderId).map(p=><option key={p.sender_id} value={p.sender_id}>{p.sender_name}</option>)}</select></label><label>Reason<select name="reason" className="block bg-panel border border-accent p-2"><option value="spam">Spam</option><option value="harassment">Harassment</option><option value="unsafe_content">Unsafe content</option><option value="other">Other</option></select></label><Button type="submit">Submit report</Button></form><p role="status">{room.room_kind!=='match'&&consentStatus}</p></details>}
+        {['group','public'].includes(room.room_kind ?? '') && <GroupTools code={room.code} selfSenderId={senderId} role={room.self_role ?? 'member'} participants={participants} socket={socket} />}
+        {room.room_kind === 'match' && <section className="border border-accent p-3 my-3" aria-label="Anonymous connection choices">
+          <p className="text-sm text-muted">Your identity stays hidden until you both consent.</p>
+          <div className="flex flex-wrap gap-2 mt-2">{(['reveal','connect'] as const).map(purpose => <Button key={purpose} onClick={() => {
+            void accountApi.post(`/match/rooms/${room.code}/consent`,{purpose,accept:true}).then(response => {
+              const result=response.data.data;
+              setConsentStatus(result.mutual ? `${result.connected ? 'Friendship established with' : 'Identity revealed:'} @${result.profile.username}` : 'Your consent is recorded. Waiting for mutual consent.');
+            }).catch(error => setConsentStatus(accountError(error)));
+          }}>{purpose === 'reveal' ? 'Reveal identity' : 'Stay Connected'}</Button>)}
+          <Button onClick={() => { void Promise.all(['reveal','connect'].map(purpose => accountApi.post(`/match/rooms/${room.code}/consent`,{purpose,accept:false}))).then(() => setConsentStatus('You chose to stay anonymous.')).catch(error => setConsentStatus(accountError(error))); }}>Stay Anonymous</Button>
+          <Button onClick={() => { if(!window.confirm('Block this anonymous participant and end the session?'))return; void accountApi.post(`/match/rooms/${room.code}/block`).then(()=>nav('/match')).catch(error=>setConsentStatus(accountError(error))); }}>Block participant</Button>
+          <Button onClick={() => { void accountApi.post(`/registered/rooms/${room.code}/terminate`).then(() => nav('/match')).catch(error => setConsentStatus(accountError(error))); }}>Skip &amp; search again</Button></div>
+          <p role="status" className="text-sm mt-2">{consentStatus}</p>
+        </section>}
         {messages.map((m, i) => <article data-message-id={m.id} key={m.id ?? i} className={`group relative max-w-[94%] border-2 p-2.5 text-sm shadow-panel sm:max-w-[82%] lg:max-w-[70%] ${m.deleted ? 'mx-auto border-punch/70 bg-panel text-muted' : m.sender_id === senderId ? 'ml-auto border-cyan bg-cyan/10' : 'border-accent bg-accent/10'}`}>
           <div className="message-row-head mb-1">
             <p className="message-sender-label text-[10px] uppercase tracking-wider text-muted">{m.deleted ? 'Message removed' : m.sender_id === senderId ? 'You' : (m.sender_name ?? 'Member')}</p>
@@ -1076,6 +1128,7 @@ export default function ChatPage() {
               <p className="reply-quote__content">{quoteLabel(m.reply_to)}</p>
             </div>
           )}
+          {!m.deleted && m.message_expires_at && <p className="mb-2 text-xs text-muted">Expires {new Date(m.message_expires_at).toLocaleTimeString()}</p>}
           {!m.deleted && m.burn_after_read && (
             <div className="burn-badge mb-2">
               <Flame className="h-3.5 w-3.5" />
@@ -1112,10 +1165,11 @@ export default function ChatPage() {
               )}
             </>
           )}
-          {!m.deleted && m.type === 'image' && m.file_url && <img src={m.file_url} className="max-h-72 w-full object-cover" />}
-          {!m.deleted && m.type === 'voice' && m.file_url && <audio controls src={m.file_url} className="w-full" />}
-          {!m.deleted && m.type === 'file' && m.file_url && (
-            <a className="file-message" href={m.file_url} target="_blank" rel="noreferrer">
+          {!m.deleted && m.view_once && m.type !== 'text' && m.file_url && <ViewOnceMedia url={m.file_url} type={m.type} name={m.file_name} consumed={!!m.view_consumed_at} isSender={m.sender_id===senderId}/>}
+          {!m.deleted && !m.view_once && m.type === 'image' && m.file_url && <img src={resolveMediaUrl(m.file_url)} alt={m.file_name??'Shared image'} className="max-h-72 w-full object-cover" />}
+          {!m.deleted && !m.view_once && m.type === 'voice' && m.file_url && <audio controls src={resolveMediaUrl(m.file_url)} className="w-full" />}
+          {!m.deleted && !m.view_once && m.type === 'file' && m.file_url && (
+            <a className="file-message" href={resolveMediaUrl(m.file_url)} target="_blank" rel="noreferrer">
               <FileText className="h-5 w-5 shrink-0 text-cyan" />
               <div className="min-w-0 flex-1">
                 <p className="file-message__name">{m.file_name ?? m.content ?? 'Attachment'}</p>
@@ -1217,6 +1271,7 @@ export default function ChatPage() {
             <span className="code-font text-punch">{recordingTime}</span>
           </div>
         )}
+        <div className="composer-options mb-2 flex flex-wrap items-center gap-3 text-xs"><label className="flex min-h-11 items-center gap-2"><span className="composer-options__label">Message lifetime</span><select aria-label="Message lifetime" value={ttlSeconds} onChange={e=>setTtlSeconds(Number(e.target.value))} disabled={!isJoined||recordingVoice} className="min-h-11 border border-accent bg-bg px-2"><option value={0}>Room lifetime</option><option value={60}>1 minute</option><option value={300}>5 minutes</option><option value={3600}>1 hour</option><option value={86400}>24 hours</option></select></label><label className="flex min-h-11 items-center gap-2"><input type="checkbox" aria-label="View-once attachments" checked={viewOnce} onChange={e=>setViewOnce(e.target.checked)} disabled={!isJoined||recordingVoice}/>View once</label></div>
         <div className="composer-actions">
           <button
             className={`composer-action-button composer-action-button--burn ${burnAfterReadMode ? 'is-burning' : ''}`}
@@ -1327,8 +1382,8 @@ export default function ChatPage() {
         <div className="mt-3 grid grid-cols-3 gap-2">
           {imageMessages.length === 0 && <p className="col-span-3 text-sm text-muted">No shared images yet.</p>}
           {imageMessages.slice(-9).reverse().map((message) => (
-            <a key={`gallery-${message.id}`} href={message.file_url} target="_blank" rel="noreferrer" className="gallery-thumb">
-              <img src={message.file_url} alt={message.content ?? 'Shared image'} />
+            <a key={`gallery-${message.id}`} href={resolveMediaUrl(message.file_url??'')} target="_blank" rel="noreferrer" className="gallery-thumb">
+              <img src={resolveMediaUrl(message.file_url??'')} alt={message.content ?? 'Shared image'} />
             </a>
           ))}
         </div>

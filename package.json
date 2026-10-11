@@ -1,0 +1,31 @@
+{
+  "name": "nullchannel",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build:server && npm run build:client",
+    "build:client": "npm run build --workspace client",
+    "build:server": "npm run build --workspace server",
+    "lint": "npm run lint --workspace server && npm run lint --workspace client",
+    "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client && npm run typecheck:manual --workspace server",
+    "test": "npm run test --workspace server && npm run test --workspace client",
+    "voice:manual": "node server/manual/run.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "overrides": {
+    "imagekit": {
+      "uuid": "^11.1.1"
+    },
+    "shell-quote": "^1.12.0",
+    "postcss-selector-parser": "^7.1.6"
+  }
+}

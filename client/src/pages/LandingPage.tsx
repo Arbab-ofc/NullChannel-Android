@@ -1,0 +1,272 @@
+import { TimerReset, UserCheck, MessageCircle, ArrowRight, Fingerprint, Users, LockKeyhole } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Menu } from 'lucide-react';
+import { NavigationOverlay } from '../components/common/NavigationOverlay';
+import { Button } from '../components/common/Button';
+import { api } from '../lib/api';
+import { useLocalSender } from '../hooks/useLocalSender';
+import { ThemeToggle } from '../components/common/ThemeToggle';
+import { LoadingSignal } from '../components/common/LoadingSignal';
+
+const expiryOptions = [
+  { label: '15 Min', value: 15 },
+  { label: '1 Hour', value: 60 },
+  { label: '6 Hours', value: 360 },
+  { label: '24 Hours', value: 1440 }
+] as const;
+
+export default function LandingPage() {
+  const nav = useNavigate();
+  const senderId = useLocalSender();
+  const [joinCode, setJoinCode] = useState('');
+  const [roomName, setRoomName] = useState('');
+  const [creatorName, setCreatorName] = useState('');
+  const [expiresInMinutes, setExpiresInMinutes] = useState<(typeof expiryOptions)[number]['value']>(1440);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false),[]);
+  const [createType, setCreateType] = useState<'private' | 'group' | null>(null);
+  const [createBusy, setCreateBusy] = useState<'private' | 'group' | null>(null);
+  const [createError, setCreateError] = useState('');
+  const [activeRoomsLoading, setActiveRoomsLoading] = useState(true);
+  const [activeRooms, setActiveRooms] = useState<Array<{ code: string; room_name: string; room_type: 'private' | 'group'; expires_at: string }>>([]);
+
+  const joinChannel = () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 8) return;
+    nav(`/chat/${code}`);
+  };
+
+  const createChannel = async (roomType: 'private' | 'group') => {
+    const name = roomName.trim();
+    const displayName = creatorName.trim();
+    if (name.length < 2 || displayName.length < 2 || createBusy) return;
+    setCreateBusy(roomType);
+    setCreateError('');
+    try {
+      const res = await api.post('/rooms', { senderId, senderName: displayName, roomType, roomName: name, expiresInMinutes });
+      sessionStorage.setItem(`nullchannel_name_${res.data.data.code}`, displayName);
+      setCreateType(null);
+      setRoomName('');
+      setCreatorName('');
+      setExpiresInMinutes(1440);
+      nav(`/chat/${res.data.data.code}`);
+    } catch {
+      setCreateError('Unable to create room. Try again.');
+    } finally {
+      setCreateBusy(null);
+    }
+  };
+
+  useEffect(() => {
+    setActiveRoomsLoading(true);
+    api.get(`/users/${senderId}/rooms`)
+      .then((res) => setActiveRooms(res.data.data ?? []))
+      .catch(() => setActiveRooms([]))
+      .finally(() => setActiveRoomsLoading(false));
+  }, [senderId]);
+
+  const grouped = useMemo(() => ({
+    private: activeRooms.filter((r) => (r.room_type ?? 'private') === 'private').slice(0, 6),
+    group: activeRooms.filter((r) => (r.room_type ?? 'private') === 'group').slice(0, 6)
+  }), [activeRooms]);
+
+  return <main className="min-h-screen bg-bg px-3 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <div className="mx-auto max-w-6xl space-y-8">
+      <header className="neo-panel flex items-center justify-between gap-4 px-5 py-4">
+        <div>
+          <p className="code-font text-xs tracking-[0.3em] text-cyan">NULLCHANNEL / PRIVATE RELAY</p>
+          <h1 className="mt-1 text-2xl font-bold uppercase tracking-wide">NullChannel</h1>
+        </div>
+        <div className="hidden items-center gap-4 xl:flex">
+          <ThemeToggle />
+          <Button onClick={() => setCreateType('private')}>Create Private</Button>
+          <Button onClick={() => setCreateType('group')}>Create Group</Button>
+        </div>
+        <button
+          className="neo-action inline-flex h-11 w-11 items-center justify-center border-2 border-accent bg-panel xl:hidden"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Toggle menu"
+          aria-expanded={menuOpen}
+          aria-controls="public-navigation"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </header>
+      <NavigationOverlay id="public-navigation" title="Navigation" open={menuOpen} close={closeMenu} immediate={createType !== null}>
+        <section className="command-group"><h3>Appearance</h3><div><ThemeToggle /></div></section>
+        <section className="command-group"><h3>Channels</h3><div>
+          <Button onClick={() => { closeMenu(); setCreateType('private'); }}>Create Private</Button>
+          <Button onClick={() => { closeMenu(); setCreateType('group'); }}>Create Group</Button>
+        </div></section>
+      </NavigationOverlay>
+
+      <section className="neo-panel hero-transmission relative overflow-hidden p-5 sm:p-8 lg:p-10">
+        <div className="hero-signal-band" aria-hidden="true" />
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+          <div>
+            <p className="code-font text-xs tracking-[0.25em] text-cyan">UNAUTHENTICATED. TEMPORARY. LIVE.</p>
+            <h2 className="mt-3 max-w-3xl text-4xl font-black uppercase leading-tight sm:text-6xl">Private channels that disappear.</h2>
+            <p className="mt-4 max-w-3xl text-base text-muted sm:text-lg">Create a temporary channel, share the code, and chat in real time. No account required. You choose when it disappears.</p>
+          </div>
+          <div className="grid gap-3">
+            <button className="hero-mode-card neo-action border-2 border-cyan bg-cyan/10 p-4 text-left" onClick={() => setCreateType('private')}>
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="code-font text-[10px] uppercase tracking-[0.22em] text-cyan">Private Room</span>
+                  <span className="mt-1 block text-lg font-black uppercase">1:1 channel</span>
+                </span>
+                <LockKeyhole className="h-6 w-6 text-punch" />
+              </span>
+              <span className="mt-3 block text-xs uppercase tracking-wider text-muted">Limited to two active users.</span>
+            </button>
+            <button className="hero-mode-card neo-action border-2 border-punch bg-punch/10 p-4 text-left" onClick={() => setCreateType('group')}>
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="code-font text-[10px] uppercase tracking-[0.22em] text-punch">Group Room</span>
+                  <span className="mt-1 block text-lg font-black uppercase">Squad relay</span>
+                </span>
+                <Users className="h-6 w-6 text-cyan" />
+              </span>
+              <span className="mt-3 block text-xs uppercase tracking-wider text-muted">Names required for multi-user chat.</span>
+            </button>
+          </div>
+        </div>
+        <div className="mt-8 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px]">
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 8))}
+            placeholder="ENTER 8-CHAR CODE"
+            className="h-12 w-full rounded-none border-2 border-accent bg-bg px-4 text-sm font-semibold tracking-widest text-text outline-none placeholder:text-muted focus:border-cyan"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') joinChannel();
+            }}
+          />
+          <Button className="h-12 w-full lg:w-auto" onClick={joinChannel} disabled={joinCode.trim().length !== 8}>Join Channel</Button>
+          <Button className="h-12 bg-accent text-bg" onClick={() => setCreateType('private')}>Create Private</Button>
+          <Button className="h-12 border-punch text-punch" onClick={() => setCreateType('group')}>Create Group</Button>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-3 text-xs uppercase tracking-wider text-muted">
+          <span className="border border-cyan px-3 py-1">No signup</span>
+          <span className="border border-cyan px-3 py-1">15 min to 24 hour expiry</span>
+          <span className="border border-cyan px-3 py-1">Real-time transport</span>
+          <span className="border border-punch px-3 py-1">Private + group modes</span>
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'No account required', Icon: UserCheck },
+          { label: 'Automatic room expiry', Icon: TimerReset },
+          { label: 'Confidential channel IDs', Icon: Fingerprint },
+          { label: 'Low-latency relay', Icon: MessageCircle }
+        ].map(({ label, Icon }) => (
+          <article key={label} className="neo-panel p-4">
+            <Icon className="h-5 w-5 text-punch" />
+            <p className="mt-3 font-semibold uppercase">{label}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="neo-panel grid gap-4 p-6 sm:grid-cols-2">
+        <div>
+          <p className="code-font text-xs tracking-[0.2em] text-cyan">PRIVACY NOTE</p>
+          <p className="mt-2 text-sm text-muted">No signup, temporary channels, and automatic data expiry.</p>
+        </div>
+        <div className="flex items-end justify-start sm:justify-end">
+          <Button onClick={() => setCreateType('private')}>Start Transmission <ArrowRight className="ml-2 inline h-4 w-4" /></Button>
+        </div>
+      </section>
+
+      <section className="neo-panel p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="code-font text-xs tracking-[0.2em] text-cyan">YOUR ACTIVE ROOMS</p>
+          {activeRoomsLoading && <LoadingSignal label="Syncing rooms" className="code-font text-xs uppercase tracking-[0.16em] text-muted" />}
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <h3 className="text-sm font-bold uppercase">Recent Private</h3>
+            <div className="mt-2 space-y-2">
+              {activeRoomsLoading && <RoomLoadingRows />}
+              {!activeRoomsLoading && grouped.private.length === 0 && <p className="text-xs text-muted">No active private rooms.</p>}
+              {grouped.private.map((r) => (
+                <button key={`p-${r.code}`} className="neo-action w-full border-2 border-accent/60 px-3 py-2 text-left" onClick={() => nav(`/chat/${r.code}`)}>
+                  <p className="code-font text-sm tracking-widest">{r.code}</p>
+                  <p className="text-xs text-muted">{r.room_name} • Active</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold uppercase">Recent Groups</h3>
+            <div className="mt-2 space-y-2">
+              {activeRoomsLoading && <RoomLoadingRows />}
+              {!activeRoomsLoading && grouped.group.length === 0 && <p className="text-xs text-muted">No active group rooms.</p>}
+              {grouped.group.map((r) => (
+                <button key={`g-${r.code}`} className="neo-action w-full border-2 border-accent/60 px-3 py-2 text-left" onClick={() => nav(`/chat/${r.code}`)}>
+                  <p className="code-font text-sm tracking-widest">{r.code}</p>
+                  <p className="text-xs text-muted">{r.room_name} • Active</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    {createType && (
+      <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
+        <div className="neo-panel w-full max-w-md p-5">
+          <p className="code-font text-xs tracking-[0.2em] text-cyan">CREATE {createType.toUpperCase()} ROOM</p>
+          <h3 className="mt-2 text-xl font-bold uppercase">Configure Channel</h3>
+          <input
+            value={creatorName}
+            onChange={(e) => setCreatorName(e.target.value)}
+            placeholder="Your display name"
+            className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3 text-sm"
+            maxLength={24}
+            disabled={!!createBusy}
+            autoFocus
+          />
+          <input
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+            placeholder="Room name"
+            className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3 text-sm"
+            maxLength={40}
+            disabled={!!createBusy}
+          />
+          <p className="mt-2 text-xs text-muted">Names need at least 2 characters.</p>
+          <div className="mt-4">
+            <p className="code-font text-[10px] uppercase tracking-[0.2em] text-muted">Auto Expire After</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {expiryOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={`neo-action border-2 px-2 py-2 text-xs font-bold uppercase tracking-wider ${expiresInMinutes === option.value ? 'border-cyan bg-cyan/10 text-cyan' : 'border-accent bg-panel text-muted'}`}
+                  onClick={() => setExpiresInMinutes(option.value)}
+                  disabled={!!createBusy}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button onClick={() => { setCreateType(null); setRoomName(''); setCreatorName(''); setExpiresInMinutes(1440); setCreateError(''); }} disabled={!!createBusy}>Cancel</Button>
+            <Button className="bg-accent text-bg" onClick={() => createChannel(createType)} disabled={roomName.trim().length < 2 || creatorName.trim().length < 2 || !!createBusy}>
+              {createBusy === createType ? <LoadingSignal label="Creating" /> : 'Create'}
+            </Button>
+          </div>
+          {!!createError && <p className="mt-3 border-2 border-red-400 bg-panel px-3 py-2 text-xs uppercase tracking-wider text-red-300">{createError}</p>}
+        </div>
+      </div>
+    )}
+  </main>;
+}
+
+const RoomLoadingRows = () => (
+  <>
+    <div className="loading-row h-[58px]" />
+    <div className="loading-row h-[58px]" />
+  </>
+);

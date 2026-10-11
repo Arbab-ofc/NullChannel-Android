@@ -1,13 +1,18 @@
+import { recoverAvatarIntents } from './avatar.service.js';
 import { supabase } from '../config/supabase.js';
-import { emitMessageBurned, emitRoomExpired, emitRoomExpiredByCode } from '../sockets/emitter.js';
+import { emitMessageBurned, emitRoomExpired, emitRoomExpiredByCode, emitDirectoryUpdated } from '../sockets/emitter.js';
 import { deleteMediaByFileId, recoverUploadIntents } from './media.service.js';
 import { logger } from '../utils/logger.js';
 
 export const cleanupRoomsByIds = async (roomIds: string[]) => {
   if (!roomIds.length) return { removedRooms: 0 };
   // Database triggers durably queue media before cascade deletion.
+  const before = await supabase.from('rooms').select('id,code').in('id',roomIds);
+  if (before.error) throw before.error;
   const { error, count } = await supabase.from('rooms').delete({ count: 'exact' }).in('id', roomIds);
   if (error) throw error;
+  for (const room of before.data ?? []) { emitRoomExpiredByCode(room.code,{reason:'terminated-by-creator'}); emitRoomExpired(room.id,{reason:'terminated-by-creator'}); }
+  emitDirectoryUpdated();
   return { removedRooms: count ?? 0 };
 };
 export const processMediaCleanup = async () => {
@@ -39,7 +44,9 @@ export const cleanupExpiredRooms = async () => {
       emitRoomExpiredByCode(room.code, { reason: 'expired' });
       emitRoomExpired(room.id, { reason: 'expired' });
     }
+    if (rooms?.length) emitDirectoryUpdated();
     await recoverUploadIntents();
+    await recoverAvatarIntents();
     await processMediaCleanup();
     const removedRooms = rooms?.length ?? 0;
     logger.info('cleanup_complete', { removedRooms });
@@ -55,5 +62,23 @@ export const cleanupBurnMessages = async () => {
     const { data, error } = await supabase.rpc('cleanup_burn_messages');
     if (error) throw error;
     for (const message of data ?? []) emitMessageBurned(message.room_id, { messageId: message.id });
+    const timed = await supabase.rpc('cleanup_timed_messages');
+    if (timed.error) throw timed.error;
+    for (const message of timed.data ?? []) emitMessageBurned(message.room_id, { messageId: message.id });
   } finally { burning = false; }
+};
+
+export const reconcileRoomCleanup = async () => {
+  const { data, error } = await supabase.from('nc_room_cleanup').select('id,media_ids').limit(100);
+  if (error) throw error;
+  for (const job of data ?? []) {
+    const queued = await supabase.from('media_cleanup').select('file_id,attempts').in('file_id',job.media_ids);
+    if (queued.error) throw queued.error;
+    const uploads = await supabase.from('media_uploads').select('file_id').in('file_id',job.media_ids);
+    if (uploads.error) throw uploads.error;
+    const result = !queued.data?.length && !uploads.data?.length
+      ? await supabase.from('nc_room_cleanup').delete().eq('id',job.id)
+      : await supabase.from('nc_room_cleanup').update({state: queued.data?.some(item => item.attempts >= 10) ? 'cleanup_failed' : 'media_cleanup_pending'}).eq('id',job.id);
+    if (result.error) throw result.error;
+  }
 };

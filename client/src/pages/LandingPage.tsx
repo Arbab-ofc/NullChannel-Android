@@ -1,5 +1,6 @@
-import { TimerReset, UserCheck, MessageCircle, ArrowRight, Fingerprint, Users, LockKeyhole } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/common/Modal';
+import { TimerReset, UserCheck, MessageCircle, Radio, ArrowRight, Fingerprint, Users, LockKeyhole } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { NavigationOverlay } from '../components/common/NavigationOverlay';
@@ -72,16 +73,16 @@ export default function LandingPage() {
   }), [activeRooms]);
 
   return <main className="min-h-screen bg-bg px-3 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-    <div className="mx-auto max-w-6xl space-y-8">
-      <header className="neo-panel flex items-center justify-between gap-4 px-5 py-4">
+    <div className="mx-auto max-w-7xl space-y-8">
+      <header className="neo-panel flex items-center justify-between gap-4 px-5 py-4 xl:max-w-7xl xl:gap-3 xl:px-4">
         <div>
           <p className="code-font text-xs tracking-[0.3em] text-cyan">NULLCHANNEL / PRIVATE RELAY</p>
           <h1 className="mt-1 text-2xl font-bold uppercase tracking-wide">NullChannel</h1>
         </div>
-        <div className="hidden items-center gap-4 xl:flex">
-          <ThemeToggle />
-          <Button onClick={() => setCreateType('private')}>Create Private</Button>
-          <Button onClick={() => setCreateType('group')}>Create Group</Button>
+        <div className="hidden items-center gap-2 xl:flex">
+          <Link className="whitespace-nowrap text-sm" to="/features">Features</Link><a className="whitespace-nowrap text-sm" href="#how-it-works">How It Works</a><Link className="whitespace-nowrap text-sm" to="/explore">Explore</Link><Link className="whitespace-nowrap text-sm" to="/docs">Docs</Link><Link className="whitespace-nowrap text-sm" to="/login">Login</Link><Link to="/signup" className="whitespace-nowrap text-sm text-cyan">Sign Up</Link><ThemeToggle />
+          <Button className="whitespace-nowrap px-3 text-xs" onClick={() => setCreateType('private')}>Create Private</Button>
+          <Button className="whitespace-nowrap px-3 text-xs" onClick={() => setCreateType('group')}>Create Group</Button>
         </div>
         <button
           className="neo-action inline-flex h-11 w-11 items-center justify-center border-2 border-accent bg-panel xl:hidden"
@@ -94,6 +95,7 @@ export default function LandingPage() {
         </button>
       </header>
       <NavigationOverlay id="public-navigation" title="Navigation" open={menuOpen} close={closeMenu} immediate={createType !== null}>
+        <section className="command-group"><h3>Discover</h3><div><Link to="/features">Features</Link><a href="#how-it-works" onClick={closeMenu}>How It Works</a><Link to="/explore">Explore</Link><Link to="/docs">Documentation</Link><Link to="/login">Login</Link><Link to="/signup">Sign Up</Link></div></section>
         <section className="command-group"><h3>Appearance</h3><div><ThemeToggle /></div></section>
         <section className="command-group"><h3>Channels</h3><div>
           <Button onClick={() => { closeMenu(); setCreateType('private'); }}>Create Private</Button>
@@ -101,15 +103,16 @@ export default function LandingPage() {
         </div></section>
       </NavigationOverlay>
 
-      <section className="neo-panel hero-transmission relative overflow-hidden p-5 sm:p-8 lg:p-10">
+      <section className="hero-transmission home-hero relative overflow-hidden p-5 sm:p-8 lg:p-10">
         <div className="hero-signal-band" aria-hidden="true" />
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
           <div>
-            <p className="code-font text-xs tracking-[0.25em] text-cyan">UNAUTHENTICATED. TEMPORARY. LIVE.</p>
-            <h2 className="mt-3 max-w-3xl text-4xl font-black uppercase leading-tight sm:text-6xl">Private channels that disappear.</h2>
-            <p className="mt-4 max-w-3xl text-base text-muted sm:text-lg">Create a temporary channel, share the code, and chat in real time. No account required. You choose when it disappears.</p>
+            <p className="code-font text-xs tracking-[0.25em] text-cyan">CONNECT PERMANENTLY. CONVERSE TEMPORARILY.</p>
+            <h2 className="mt-3 max-w-3xl text-4xl font-black uppercase leading-tight sm:text-6xl">Connect Permanently.<br /><span className="text-cyan">Converse Temporarily.</span></h2>
+            <p className="mt-4 max-w-3xl text-base text-muted sm:text-lg">Build meaningful connections, start private conversations, and let every chat disappear when its session ends.</p>
           </div>
           <div className="grid gap-3">
+            <Link to="/signup" className="home-primary">Get Started <ArrowRight aria-hidden="true" /></Link><a href="#anonymous" className="home-secondary">Continue Anonymously</a>
             <button className="hero-mode-card neo-action border-2 border-cyan bg-cyan/10 p-4 text-left" onClick={() => setCreateType('private')}>
               <span className="flex items-center justify-between gap-3">
                 <span>
@@ -132,9 +135,9 @@ export default function LandingPage() {
             </button>
           </div>
         </div>
-        <div className="mt-8 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px]">
+        <div id="anonymous" className="mt-8 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px]">
           <input
-            value={joinCode}
+            aria-label="Eight-character room code" value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 8))}
             placeholder="ENTER 8-CHAR CODE"
             className="h-12 w-full rounded-none border-2 border-accent bg-bg px-4 text-sm font-semibold tracking-widest text-text outline-none placeholder:text-muted focus:border-cyan"
@@ -154,29 +157,39 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: 'No account required', Icon: UserCheck },
-          { label: 'Automatic room expiry', Icon: TimerReset },
-          { label: 'Confidential channel IDs', Icon: Fingerprint },
-          { label: 'Low-latency relay', Icon: MessageCircle }
-        ].map(({ label, Icon }) => (
-          <article key={label} className="neo-panel p-4">
-            <Icon className="h-5 w-5 text-punch" />
-            <p className="mt-3 font-semibold uppercase">{label}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="neo-panel grid gap-4 p-6 sm:grid-cols-2">
-        <div>
-          <p className="code-font text-xs tracking-[0.2em] text-cyan">PRIVACY NOTE</p>
-          <p className="mt-2 text-sm text-muted">No signup, temporary channels, and automatic data expiry.</p>
-        </div>
-        <div className="flex items-end justify-start sm:justify-end">
-          <Button onClick={() => setCreateType('private')}>Start Transmission <ArrowRight className="ml-2 inline h-4 w-4" /></Button>
+      <section id="features" className="home-section">
+        <p className="code-font text-xs tracking-widest text-cyan">ONE PRINCIPLE. TWO WAYS TO CONNECT.</p>
+        <div className="home-modes">
+          <article><UserCheck aria-hidden="true" /><h2>Anonymous Mode</h2><h3>No account. Just a conversation.</h3><p>Instant access to temporary, invite-based rooms. No registration required.</p><Button onClick={() => setCreateType('private')}>Start anonymously</Button></article>
+          <article><Users aria-hidden="true" /><h2>Registered Mode</h2><h3>Keep your friends. Lose the history.</h3><p>A persistent profile and friendships, with a fresh temporary session for every conversation.</p><Link to="/signup" className="home-secondary">Create an account <ArrowRight aria-hidden="true" /></Link></article>
         </div>
       </section>
+      <section id="how-it-works" className="home-section">
+        <p className="code-font text-xs tracking-widest text-cyan">HOW IT WORKS</p><h2>A conversation, with an ending.</h2>
+        <ol className="home-steps">{['Choose your mode.', 'Find or invite someone.', 'Start a temporary conversation.', 'End the session.', 'The conversation disappears from the application.'].map((step, index) => <li key={step}><span className="code-font text-cyan">0{index + 1}</span><p>{step}</p></li>)}</ol>
+      </section>
+      <section className="home-section">
+        <p className="code-font text-xs tracking-widest text-cyan">BUILT INTO THE CHANNEL</p><h2>Less history. More control.</h2>
+        <div className="home-feature-list">{[{Icon: MessageCircle, title:'Temporary rooms', text:'Invite someone into a private room or bring a group together. Every room has a finite lifetime.'}, {Icon: TimerReset, title:'Burn Mode', text:'A message disappears 60 seconds after another participant sees it.'}, {Icon: Fingerprint, title:'Session identities', text:'Guest aliases belong to the conversation. Account identities stay separate from anonymous chat.'}, {Icon: LockKeyhole, title:'Voice and media', text:'Talk one-to-one and share images, voice notes and files. Provider cleanup may take time after a session ends.'}].map(({Icon,title,text}) => <article key={title}><Icon aria-hidden="true" /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div>
+      </section>
+      <section className="home-section home-modes">
+        <article><p className="code-font text-xs tracking-widest text-cyan">PERSISTENT</p><h2>Connections stay.</h2><p>Accounts, friendships and privacy settings are independent of chat sessions.</p></article>
+        <article><p className="code-font text-xs tracking-widest text-punch">TEMPORARY</p><h2>Conversations end.</h2><p>Rooms, messages, attachments, calls and room invitations expire. There is no chat restoration.</p></article>
+      </section>
+      <section className="home-section"><h2>Choose your connection.</h2><div className="overflow-x-auto"><table className="home-comparison"><caption className="sr-only">Guest and registered features</caption><thead><tr><th scope="col">Feature</th><th scope="col">Guest</th><th scope="col">Registered</th></tr></thead><tbody>{[['Temporary conversations','Yes','Yes'],['Account required','No','Yes'],['Persistent friendships','No','Yes'],['Public discovery','No','Yes'],['Anonymous matching','No','Yes'],['Restore expired chats','Never','Never']].map(row => <tr key={row[0]}>{row.map((cell,i) => i===0 ? <th scope="row" key={cell}>{cell}</th> : <td key={i}>{cell}</td>)}</tr>)}</tbody></table></div></section>
+      <section className="home-section"><h2>Before you connect.</h2><div className="home-faq">{[
+        ['Is registration required?','No. Continue anonymously to create or join a guest room.'],
+        ['Can I add friends?','Registered accounts can keep friendships between temporary conversations.'],
+        ['Are messages permanent?','No. Session expiry revokes application access and starts cleanup. Burn messages expire 60 seconds after being seen.'],
+        ['Do groups remain?','Groups expire or can be destroyed. Create a new group for your next conversation.'],
+        ['Can I recover deleted chats?','No. NullChannel has no chat restoration feature.'],
+        ['How does random matching work?','Registered users search for an available participant. Both must accept a proposal before a room is created.'],
+        ['What happens after 60 seconds?','The server ends an unmatched search. You can try again later.'],
+        ['Can I remain anonymous?','Yes. Random sessions begin with temporary aliases.'],
+        ['Can I reveal my identity?','Only mutual, session-specific consent can reveal permitted profile information.'],
+        ['Does ending a room remove my friends?','No. Friendship persists. Conversations do not.']
+      ].map(([question,answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
+      <section className="home-section home-final"><Radio aria-hidden="true" /><h2>Start a conversation.<br />Leave no chat history behind.</h2><div className="flex flex-wrap gap-4"><Link to="/signup" className="home-primary">Get Started <ArrowRight aria-hidden="true" /></Link><Button onClick={() => setCreateType('private')}>Continue Anonymously</Button></div></section>
 
       <section className="neo-panel p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -185,7 +198,7 @@ export default function LandingPage() {
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div>
-            <h3 className="text-sm font-bold uppercase">Recent Private</h3>
+            <h3 className="text-sm font-bold uppercase">Active Private</h3>
             <div className="mt-2 space-y-2">
               {activeRoomsLoading && <RoomLoadingRows />}
               {!activeRoomsLoading && grouped.private.length === 0 && <p className="text-xs text-muted">No active private rooms.</p>}
@@ -198,7 +211,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div>
-            <h3 className="text-sm font-bold uppercase">Recent Groups</h3>
+            <h3 className="text-sm font-bold uppercase">Active Groups</h3>
             <div className="mt-2 space-y-2">
               {activeRoomsLoading && <RoomLoadingRows />}
               {!activeRoomsLoading && grouped.group.length === 0 && <p className="text-xs text-muted">No active group rooms.</p>}
@@ -214,14 +227,14 @@ export default function LandingPage() {
       </section>
     </div>
     {createType && (
-      <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
+      <Modal titleId="create-channel-title" close={() => { if (!createBusy) setCreateType(null); }}>
         <div className="neo-panel w-full max-w-md p-5">
           <p className="code-font text-xs tracking-[0.2em] text-cyan">CREATE {createType.toUpperCase()} ROOM</p>
-          <h3 className="mt-2 text-xl font-bold uppercase">Configure Channel</h3>
+          <h3 id="create-channel-title" className="mt-2 text-xl font-bold uppercase">Configure Channel</h3>
           <input
             value={creatorName}
             onChange={(e) => setCreatorName(e.target.value)}
-            placeholder="Your display name"
+            aria-label="Your display name" placeholder="Your display name"
             className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3 text-sm"
             maxLength={24}
             disabled={!!createBusy}
@@ -230,7 +243,7 @@ export default function LandingPage() {
           <input
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
-            placeholder="Room name"
+            aria-label="Room name" placeholder="Room name"
             className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3 text-sm"
             maxLength={40}
             disabled={!!createBusy}
@@ -259,7 +272,7 @@ export default function LandingPage() {
           </div>
           {!!createError && <p className="mt-3 border-2 border-red-400 bg-panel px-3 py-2 text-xs uppercase tracking-wider text-red-300">{createError}</p>}
         </div>
-      </div>
+      </Modal>
     )}
   </main>;
 }

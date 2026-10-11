@@ -1,0 +1,6369 @@
+[
+  {
+    "method": "post",
+    "route": "/api/account/signup",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_signup",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_]{3,24}$"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 12,
+                "maxLength": 128
+              }
+            }
+          },
+          "example": {
+            "username": "example",
+            "email": "fixture@example.invalid",
+            "password": "Example passphrase 42"
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "username": "example",
+      "email": "fixture@example.invalid",
+      "password": "Example passphrase 42"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/login",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_login",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "password": {
+                "type": "string"
+              }
+            }
+          },
+          "example": {
+            "email": "fixture@example.invalid",
+            "password": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "email": "fixture@example.invalid",
+      "password": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/refresh",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_refresh",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/account/logout",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_logout",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/account/forgot-password",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_forgot_password",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
+            }
+          },
+          "example": {
+            "email": "fixture@example.invalid"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "email": "fixture@example.invalid"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/reset-password",
+    "source": "account.routes.ts",
+    "auth": "Public",
+    "tag": "account",
+    "operationId": "post__account_reset_password",
+    "description": "Implemented in server/src/routes/account.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string",
+                "minLength": 12
+              },
+              "accessToken": {
+                "type": "string"
+              },
+              "refreshToken": {
+                "type": "string"
+              }
+            }
+          },
+          "example": {
+            "password": "Example passphrase 42",
+            "accessToken": "example",
+            "refreshToken": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "password": "Example passphrase 42",
+      "accessToken": "example",
+      "refreshToken": "example"
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/account/me",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "get__account_me",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "patch",
+    "route": "/api/account/profile",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "patch__account_profile",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "display_name": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "bio": {
+                "type": "string",
+                "maxLength": 240
+              },
+              "username": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 24
+              }
+            }
+          },
+          "example": {
+            "display_name": "example",
+            "bio": "example",
+            "username": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "display_name": "example",
+      "bio": "example",
+      "username": "example"
+    }
+  },
+  {
+    "method": "put",
+    "route": "/api/account/privacy",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "put__account_privacy",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "profile_visibility": {
+                "enum": [
+                  "registered",
+                  "friends",
+                  "private"
+                ]
+              },
+              "discoverability": {
+                "enum": [
+                  "registered",
+                  "friends",
+                  "nobody"
+                ]
+              },
+              "friend_requests": {
+                "enum": [
+                  "registered",
+                  "nobody"
+                ]
+              },
+              "presence_visibility": {
+                "enum": [
+                  "registered",
+                  "friends",
+                  "nobody"
+                ]
+              },
+              "invitations": {
+                "enum": [
+                  "registered",
+                  "friends",
+                  "nobody"
+                ]
+              },
+              "matchmaking": {
+                "type": "boolean"
+              },
+              "ghost_mode": {
+                "type": "boolean"
+              },
+              "notify_friend_requests": {
+                "type": "boolean"
+              },
+              "notify_invitations": {
+                "type": "boolean"
+              },
+              "notify_matches": {
+                "type": "boolean"
+              },
+              "notify_expiration": {
+                "type": "boolean"
+              }
+            }
+          },
+          "example": {
+            "profile_visibility": "registered",
+            "discoverability": "registered",
+            "friend_requests": "registered",
+            "presence_visibility": "registered",
+            "invitations": "registered",
+            "matchmaking": true,
+            "ghost_mode": true,
+            "notify_friend_requests": true,
+            "notify_invitations": true,
+            "notify_matches": true,
+            "notify_expiration": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "profile_visibility": "registered",
+      "discoverability": "registered",
+      "friend_requests": "registered",
+      "presence_visibility": "registered",
+      "invitations": "registered",
+      "matchmaking": true,
+      "ghost_mode": true,
+      "notify_friend_requests": true,
+      "notify_invitations": true,
+      "notify_matches": true,
+      "notify_expiration": true
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/password",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "post__account_password",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "current_password": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string",
+                "minLength": 12
+              }
+            }
+          },
+          "example": {
+            "current_password": "example",
+            "password": "Example passphrase 42"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "current_password": "example",
+      "password": "Example passphrase 42"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/delete",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "post__account_delete",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "password": {
+                "type": "string"
+              }
+            }
+          },
+          "example": {
+            "password": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "password": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/account/avatar",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "post__account_avatar",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "format": "binary",
+                "description": "PNG/JPEG/GIF/WebP image; maximum 2 MiB, content signature validated."
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "delete",
+    "route": "/api/account/avatar",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "delete__account_avatar",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/account/avatars/:username",
+    "source": "account.routes.ts",
+    "auth": "Registered",
+    "tag": "account",
+    "operationId": "get__account_avatars__username",
+    "description": "Implemented in server/src/routes/account.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "username",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/cleanup",
+    "source": "cleanup.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "operations",
+    "operationId": "post__cleanup",
+    "description": "Implemented in server/src/routes/cleanup.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/registered/rooms/:code/polls",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "get__registered_rooms__code_polls",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/polls",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_polls",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160
+              },
+              "options": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 8,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              }
+            }
+          },
+          "example": {
+            "question": "example",
+            "options": [],
+            "minutes": 1
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "question": "example",
+      "options": [],
+      "minutes": 1
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/polls/:id/vote",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_polls__id_vote",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "choice": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              }
+            }
+          },
+          "example": {
+            "choice": 0
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "choice": 0
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/polls/:id/close",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_polls__id_close",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/moderation",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_moderation",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "senderId": {
+                "type": "string"
+              },
+              "action": {
+                "enum": [
+                  "mute",
+                  "unmute",
+                  "kick",
+                  "ban",
+                  "moderator",
+                  "member"
+                ]
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              }
+            }
+          },
+          "example": {
+            "senderId": "example",
+            "action": "mute",
+            "minutes": 1
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "senderId": "example",
+      "action": "mute",
+      "minutes": 1
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/invite-links",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_invite_links",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              },
+              "uses": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            }
+          },
+          "example": {
+            "minutes": 1,
+            "uses": 1
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "minutes": 1,
+      "uses": 1
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/invite-links/consume",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_invite_links_consume",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "token": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "example": {
+            "token": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "token": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/invite-links/:id/revoke",
+    "source": "group-tools.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_invite_links__id_revoke",
+    "description": "Implemented in server/src/routes/group-tools.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/health",
+    "source": "health.routes.ts",
+    "auth": "Public",
+    "tag": "operations",
+    "operationId": "get__health",
+    "description": "Implemented in server/src/routes/health.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/health/db",
+    "source": "health.routes.ts",
+    "auth": "Public",
+    "tag": "operations",
+    "operationId": "get__health_db",
+    "description": "Implemented in server/src/routes/health.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/match/start",
+    "source": "match.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "post__match_start",
+    "description": "Implemented in server/src/routes/match.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/match/status",
+    "source": "match.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "get__match_status",
+    "description": "Implemented in server/src/routes/match.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/match/cancel",
+    "source": "match.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "post__match_cancel",
+    "description": "Implemented in server/src/routes/match.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/match/proposals/:id/:action",
+    "source": "match.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "post__match_proposals__id__action",
+    "description": "Implemented in server/src/routes/match.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "action",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Allowed action is constrained by this route; consult the request example."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/match/rooms/:code/consent",
+    "source": "match.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "post__match_rooms__code_consent",
+    "description": "Implemented in server/src/routes/match.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "purpose": {
+                "enum": [
+                  "reveal",
+                  "connect"
+                ]
+              },
+              "accept": {
+                "type": "boolean"
+              }
+            }
+          },
+          "example": {
+            "purpose": "reveal",
+            "accept": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "purpose": "reveal",
+      "accept": true
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/media/files/:fileId",
+    "source": "media.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "media",
+    "operationId": "get__media_files__fileId",
+    "description": "Implemented in server/src/routes/media.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "fileId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "open",
+        "in": "query",
+        "schema": {
+          "enum": [
+            "1"
+          ]
+        },
+        "description": "Required for explicit recipient opening of view-once media. Consumption is atomic."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Authorized bounded binary media, Cache-Control: no-store.",
+        "content": {
+          "application/octet-stream": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/media/upload",
+    "source": "media.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "media",
+    "operationId": "post__media_upload",
+    "description": "Implemented in server/src/routes/media.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "roomCode",
+              "type",
+              "file"
+            ],
+            "properties": {
+              "roomCode": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 8
+              },
+              "type": {
+                "enum": [
+                  "image",
+                  "voice",
+                  "file"
+                ]
+              },
+              "file": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/notifications/unread",
+    "source": "notification.routes.ts",
+    "auth": "Registered",
+    "tag": "notifications",
+    "operationId": "get__notifications_unread",
+    "description": "Implemented in server/src/routes/notification.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/notifications",
+    "source": "notification.routes.ts",
+    "auth": "Registered",
+    "tag": "notifications",
+    "operationId": "get__notifications",
+    "description": "Implemented in server/src/routes/notification.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "patch",
+    "route": "/api/notifications",
+    "source": "notification.routes.ts",
+    "auth": "Registered",
+    "tag": "notifications",
+    "operationId": "patch__notifications",
+    "description": "Implemented in server/src/routes/notification.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "all": {
+                "type": "boolean"
+              }
+            }
+          },
+          "example": {
+            "id": "00000000-0000-4000-8000-000000000000",
+            "all": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "id": "00000000-0000-4000-8000-000000000000",
+      "all": true
+    }
+  },
+  {
+    "method": "delete",
+    "route": "/api/notifications",
+    "source": "notification.routes.ts",
+    "auth": "Registered",
+    "tag": "notifications",
+    "operationId": "delete__notifications",
+    "description": "Implemented in server/src/routes/notification.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "all": {
+                "type": "boolean"
+              }
+            }
+          },
+          "example": {
+            "id": "00000000-0000-4000-8000-000000000000",
+            "all": true
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "id": "00000000-0000-4000-8000-000000000000",
+      "all": true
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/registered/privacy",
+    "source": "privacy.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "get__registered_privacy",
+    "description": "Implemented in server/src/routes/privacy.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/sessions/end",
+    "source": "privacy.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_sessions_end",
+    "description": "Implemented in server/src/routes/privacy.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/report",
+    "source": "privacy.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_report",
+    "description": "Implemented in server/src/routes/privacy.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "senderId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "reason": {
+                "enum": [
+                  "spam",
+                  "harassment",
+                  "unsafe_content",
+                  "other"
+                ]
+              }
+            }
+          },
+          "example": {
+            "senderId": "00000000-0000-4000-8000-000000000000",
+            "reason": "spam"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "senderId": "00000000-0000-4000-8000-000000000000",
+      "reason": "spam"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/match/rooms/:code/block",
+    "source": "privacy.routes.ts",
+    "auth": "Registered",
+    "tag": "match",
+    "operationId": "post__match_rooms__code_block",
+    "description": "Implemented in server/src/routes/privacy.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "public",
+                  "group"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "category": {
+                "enum": [
+                  "General",
+                  "Technology",
+                  "Gaming",
+                  "Music",
+                  "Study",
+                  "Entertainment",
+                  "Anonymous Discussions",
+                  "Other"
+                ]
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 24
+                },
+                "maxItems": 5
+              },
+              "capacity": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 50
+              },
+              "minutes": {
+                "enum": [
+                  15,
+                  60,
+                  360,
+                  1440
+                ]
+              }
+            }
+          },
+          "example": {
+            "kind": "public",
+            "name": "example",
+            "description": "example",
+            "category": "General",
+            "tags": [],
+            "capacity": 2,
+            "minutes": 15
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "kind": "public",
+      "name": "example",
+      "description": "example",
+      "category": "General",
+      "tags": [],
+      "capacity": 2,
+      "minutes": 15
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/registered/rooms",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "get__registered_rooms",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/registered/explore",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "get__registered_explore",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "search",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "category",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "sort",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/join",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_join",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/rooms/:code/terminate",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_rooms__code_terminate",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/registered/invitations",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "get__registered_invitations",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/invitations",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_invitations",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string",
+                "minLength": 8,
+                "maxLength": 8
+              }
+            }
+          },
+          "example": {
+            "username": "example",
+            "code": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "username": "example",
+      "code": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/registered/invitations/:id/:action",
+    "source": "registered-room.routes.ts",
+    "auth": "Registered",
+    "tag": "registered",
+    "operationId": "post__registered_invitations__id__action",
+    "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "action",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Allowed action is constrained by this route; consult the request example."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "senderName": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 24
+              },
+              "roomName": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 40
+              },
+              "roomType": {
+                "enum": [
+                  "private",
+                  "group"
+                ]
+              },
+              "expiresInMinutes": {
+                "enum": [
+                  15,
+                  60,
+                  360,
+                  1440
+                ]
+              }
+            }
+          },
+          "example": {
+            "senderName": "example",
+            "roomName": "example",
+            "roomType": "private",
+            "expiresInMinutes": 15
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "senderName": "example",
+      "roomName": "example",
+      "roomType": "private",
+      "expiresInMinutes": 15
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/rooms/:code",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "get__rooms__code",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/rooms/:code/messages",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "get__rooms__code_messages",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "patch",
+    "route": "/api/rooms/:code/pin",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "patch__rooms__code_pin",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "messageId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "example": {
+            "messageId": "00000000-0000-4000-8000-000000000000"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "messageId": "00000000-0000-4000-8000-000000000000"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/messages/:messageId/burn-read",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_messages__messageId_burn_read",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "messageId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "patch",
+    "route": "/api/rooms/:code/messages/:messageId",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "patch__rooms__code_messages__messageId",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "messageId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "maxLength": 4000
+              }
+            }
+          },
+          "example": {
+            "content": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "content": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/messages/:messageId/reactions",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_messages__messageId_reactions",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "messageId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "senderName": {
+                "type": "string"
+              },
+              "emoji": {
+                "enum": [
+                  "👍",
+                  "😂",
+                  "🔥",
+                  "❤️",
+                  "👀"
+                ]
+              }
+            }
+          },
+          "example": {
+            "senderName": "example",
+            "emoji": "👍"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "senderName": "example",
+      "emoji": "👍"
+    }
+  },
+  {
+    "method": "delete",
+    "route": "/api/rooms/:code/messages/:messageId",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "delete__rooms__code_messages__messageId",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "messageId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "maxLength": 4000
+              }
+            }
+          },
+          "example": {
+            "content": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "content": "example"
+    }
+  },
+  {
+    "method": "get",
+    "route": "/api/rooms/:code/participants",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "get__rooms__code_participants",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/extend",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_extend",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "extendByMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 1440
+              }
+            }
+          },
+          "example": {
+            "extendByMinutes": 5
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "extendByMinutes": 5
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/wipe",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_wipe",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/terminate",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_terminate",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/rooms/:code/leave",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "rooms",
+    "operationId": "post__rooms__code_leave",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "code",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/users/:senderId/rooms",
+    "source": "room.routes.ts",
+    "auth": "Guest or registered room",
+    "tag": "operations",
+    "operationId": "get__users__senderId_rooms",
+    "description": "Implemented in server/src/routes/room.routes.ts. Requires a verified guest or authorized registered room session. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "senderId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Compatibility field. The server ignores supplied identity and uses the cookie session."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/session",
+    "source": "session.routes.ts",
+    "auth": "Public",
+    "tag": "operations",
+    "operationId": "post__session",
+    "description": "Implemented in server/src/routes/session.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "delete",
+    "route": "/api/session",
+    "source": "session.routes.ts",
+    "auth": "Public",
+    "tag": "operations",
+    "operationId": "delete__session",
+    "description": "Implemented in server/src/routes/session.routes.ts. No signed-in account required. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/social/friends",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "get__social_friends",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/social/requests",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "get__social_requests",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/social/search",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "get__social_search",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "q",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/social/requests",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "post__social_requests",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            }
+          },
+          "example": {
+            "username": "example"
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {
+      "username": "example"
+    }
+  },
+  {
+    "method": "post",
+    "route": "/api/social/requests/:id/:action",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "post__social_requests__id__action",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      },
+      {
+        "name": "action",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Allowed action is constrained by this route; consult the request example."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "get",
+    "route": "/api/social/blocks",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "get__social_blocks",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "delete",
+    "route": "/api/social/friends/:username",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "delete__social_friends__username",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "username",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "post",
+    "route": "/api/social/blocks/:username",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "post__social_blocks__username",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "username",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  },
+  {
+    "method": "delete",
+    "route": "/api/social/blocks/:username",
+    "source": "social.routes.ts",
+    "auth": "Registered",
+    "tag": "social",
+    "operationId": "delete__social_blocks__username",
+    "description": "Implemented in server/src/routes/social.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+    "parameters": [
+      {
+        "name": "username",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Resource identifier."
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "Successful operation (JSON envelope).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success",
+                "data",
+                "error"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {},
+                "error": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request."
+      },
+      "401": {
+        "description": "Missing or expired authentication."
+      },
+      "403": {
+        "description": "Permission denied or Origin rejected."
+      },
+      "404": {
+        "description": "Resource missing or expired."
+      },
+      "409": {
+        "description": "State conflict."
+      },
+      "429": {
+        "description": "Rate limit exceeded; retry later."
+      },
+      "500": {
+        "description": "Sanitized internal error."
+      }
+    },
+    "example": {}
+  }
+]

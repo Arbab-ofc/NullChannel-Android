@@ -5,24 +5,11 @@ import App from './App';
 import './styles/globals.css';
 import { ThemeProvider } from './hooks/useTheme';
 import { ensureSession } from './lib/session';
-
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 const start = async () => {
-  try {
-    await ensureSession();
-    root.render(
-  <React.StrictMode>
-    <ThemeProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </ThemeProvider>
-  </React.StrictMode>
-
-    );
-    window.setInterval(() => { void ensureSession().catch(() => undefined); }, 10 * 60 * 1000);
-  } catch {
-    root.render(<main className="p-8"><p>Unable to initialize your anonymous session.</p><button onClick={() => void start()}>Retry</button></main>);
-  }
+  // Preserve the established guest identity invariant before guest components mount.
+  try { await ensureSession(); } catch { /* Account recovery and public pages remain available. */ }
+  root.render(<React.StrictMode><ThemeProvider><BrowserRouter><App /></BrowserRouter></ThemeProvider></React.StrictMode>);
+  window.setInterval(() => { void ensureSession().catch(() => undefined); },10*60*1000);
 };
 void start();

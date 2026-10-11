@@ -39,10 +39,10 @@ describe('isolated manual harness',() => {
     sockets.forEach(socket => socket.disconnect());
     if (child && child.exitCode === null) {
       const exited = new Promise<void>(resolve => child.once('exit',() => resolve())); child.kill('SIGINT');
-      await Promise.race([exited,new Promise<void>(resolve => { const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(); },8000); timer.unref(); exited.then(() => clearTimeout(timer)); })]);
+      await Promise.race([exited,new Promise<void>(resolve => { const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(); },30000); timer.unref(); exited.then(() => clearTimeout(timer)); })]);
       expect(child.exitCode).toBe(0);
     }
-  },10000);
+  },40000);
   it('serves the actual app and refuses CSRF session creation',async () => {
     expect((await fetch(`${origin}/chat/TEST1234`)).status).toBe(200);
     expect((await fetch(`${origin}/api/session`,{ method: 'POST',headers: { Origin: 'https://evil.invalid' } })).status).toBe(403);

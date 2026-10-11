@@ -2,8 +2,8 @@ import { supabase } from '../config/supabase.js';
 import { generateCode } from '../utils/generateCode.js';
 import { cleanupRoomsByIds } from './cleanup.service.js';
 
-const roomSelectWithType = 'id, code, creator_id, room_type, room_name, created_at, expires_at, expiry_extended, pinned_message_id';
-const legacyRoomSelectWithType = 'id, code, creator_id, room_type, room_name, created_at, expires_at, expiry_extended';
+const roomSelectWithType = 'id, code, creator_id, room_type, room_name, created_at, expires_at, expiry_extended, pinned_message_id, room_kind';
+const legacyRoomSelectWithType = 'id, code, creator_id, room_type, room_name, created_at, expires_at, expiry_extended, room_kind';
 
 const withPinnedFallback = <T extends { pinned_message_id?: string | null } | null>(data: T) => data;
 
@@ -24,6 +24,10 @@ export const getRoomByCode = async (code: string) => {
     .eq('code', code)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle();
+  if (error?.message?.includes('room_kind')) {
+    const fallback = await supabase.from('rooms').select('id, code, creator_id, room_type, room_name, created_at, expires_at, expiry_extended, pinned_message_id').eq('code',code).gt('expires_at',new Date().toISOString()).maybeSingle();
+    data = fallback.data ? { ...fallback.data, room_kind:'guest' } : null; error = fallback.error;
+  }
   if (error?.message?.includes('pinned_message_id')) {
     const fallback = await supabase
       .from('rooms')

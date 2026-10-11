@@ -1,3 +1,9 @@
+import { randomUUID } from 'node:crypto';
+import { supabase } from '../config/supabase.js';
+import { getRoomByCode } from '../services/room.service.js';
+import { verifyAccountCookie } from '../services/account.service.js';
+import { attachAccountPresence } from '../services/presence.service.js';
+import { socketSessionValid } from './auth.js';
 import { isIP } from 'node:net';
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -24,6 +30,19 @@ export const createSocketServer = (server: HttpServer) => {
 
   io.use(async (socket, next) => {
     try {
+      const account = await verifyAccountCookie(socket.request.headers.cookie);
+      if (account) {
+        socket.data.accountId = account.id;
+        const code = typeof socket.handshake.auth.roomCode === 'string' ? socket.handshake.auth.roomCode.toUpperCase() : '';
+        if (!code) { socket.data.identity = randomUUID(); socket.data.socialOnly = true; next(); return; }
+        const room = await getRoomByCode(code);
+        if (room && room.room_kind !== 'guest') {
+          const mapping = await supabase.from('nc_room_identities').select('sender_id,alias,role').eq('room_id',room.id).eq('account_id',account.id).maybeSingle();
+          if (mapping.error || !mapping.data) return next(new Error('JOIN_REQUIRED'));
+          socket.data.identity = mapping.data.sender_id; socket.data.alias = mapping.data.alias; socket.data.roomRole = mapping.data.role; socket.data.accountRoom = room.id;
+          next(); return;
+        }
+      }
       const session = await verifySession(readCookie(socket.request.headers.cookie, accessCookie()));
       if (!session) return next(new Error('SESSION_EXPIRED'));
       socket.data.identity = session.identity_id;
@@ -33,11 +52,10 @@ export const createSocketServer = (server: HttpServer) => {
   });
 
   io.on('connection', (socket) => {
+    if (socket.data.accountId) void attachAccountPresence(io,socket,socket.data.accountId).catch(() => socket.disconnect(true));
     const sessionWatch = setInterval(async () => {
       try {
-        const { supabase } = await import('../config/supabase.js');
-        const { data, error } = await supabase.from('anonymous_sessions').select('id').eq('id', socket.data.sessionId).is('revoked_at', null).gt('expires_at', new Date().toISOString()).gt('access_expires_at', new Date().toISOString()).maybeSingle();
-        if (error || !data) socket.disconnect(true);
+        if (!await socketSessionValid(socket)) socket.disconnect(true);
       } catch { socket.disconnect(true); }
     }, 15000);
     sessionWatch.unref();

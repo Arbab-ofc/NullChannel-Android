@@ -1,7 +1,13 @@
 node_modules
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
 dist
 build
 coverage
@@ -13,3 +19,6 @@ server/dist
 client/tsconfig.tsbuildinfo
 
 output/playwright/
+
+.playwright-cli/
+output/

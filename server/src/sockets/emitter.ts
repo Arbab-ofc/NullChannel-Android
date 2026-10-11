@@ -72,3 +72,11 @@ export const revokeSessionSockets = async (sessionId: string) => {
     if (socket.data.sessionId === sessionId) socket.disconnect(true);
   }
 };
+
+export const emitTemporaryRoomEvent = (roomId: string, event: 'poll:update' | 'moderation:update', payload: unknown) => {
+  ioRef?.to(roomId).emit(event, payload);
+};
+
+export const activeCallCount = (roomIds:string[]) => ioRef ? [...getCallRegistry(ioRef).calls.values()].filter(call => roomIds.includes(call.roomId)).length : 0;
+
+export const emitDirectoryUpdated = () => ioRef?.to('registered-directory').emit('directory:updated',{refresh:true});

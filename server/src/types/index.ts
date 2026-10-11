@@ -13,4 +13,6 @@ export interface MessagePayload {
   mimeType?: string;
   replyToMessageId?: string;
   burnAfterRead?: boolean;
+  ttlSeconds?:number;
+  viewOnce?:boolean;
 }

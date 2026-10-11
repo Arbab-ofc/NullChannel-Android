@@ -1,3 +1,6 @@
+import { cleanupSocialExpiry, createRoomExpirationWarnings } from './services/presence.service.js';
+import { sweepRegisteredEphemera } from './routes/match.routes.js';
+import { reconcileRoomCleanup } from './services/cleanup.service.js';
 import { createServer } from 'node:http';
 import cron from 'node-cron';
 import { app } from './app.js';
@@ -11,25 +14,30 @@ const io = createSocketServer(httpServer);
 let cleanupTask: Promise<unknown> | undefined;
 const runCleanup = () => {
   if (cleanupTask) return;
-  cleanupTask = cleanupExpiredRooms().catch(() => logger.error('cleanup_failed')).finally(() => { cleanupTask = undefined; });
+  cleanupTask = cleanupExpiredRooms().then(async () => { await cleanupSocialExpiry(); await createRoomExpirationWarnings(); await reconcileRoomCleanup(); }).catch(() => logger.error('cleanup_failed')).finally(() => { cleanupTask = undefined; });
 };
 let burnTask: Promise<unknown> | undefined;
 const runBurnCleanup = () => {
   if (!burnTask) burnTask = cleanupBurnMessages().catch(() => logger.error('burn_cleanup_failed')).finally(() => { burnTask = undefined; });
 };
-const burnJob = setInterval(runBurnCleanup, 1000); burnJob.unref();
-const job = cron.schedule('* * * * *', runCleanup);
+const burnJob = setInterval(() => { if (env.BACKGROUND_CLEANUP_ENABLED === 'true') runBurnCleanup(); }, 1000); burnJob.unref();
+const job = cron.schedule('* * * * *', () => { if (env.BACKGROUND_CLEANUP_ENABLED === 'true') runCleanup(); });
+let matching = false;
+const matchJob = setInterval(() => {
+  if (env.BACKGROUND_CLEANUP_ENABLED !== 'true' || matching) return;
+  matching = true; void sweepRegisteredEphemera().catch(() => logger.error('match_sweep_failed')).finally(() => { matching = false; });
+}, 1000); matchJob.unref();
 httpServer.on('error', (error: Error & { code?: string }) => {
   logger.error('startup_failed', { code: error.code }); process.exit(1);
 });
-httpServer.listen(env.PORT, env.HOST, () => { logger.info('server_started', { port: env.PORT }); runCleanup(); runBurnCleanup(); });
+httpServer.listen(env.PORT, env.HOST, () => { logger.info('server_started', { port: env.PORT }); if (env.BACKGROUND_CLEANUP_ENABLED === 'true') { runCleanup(); runBurnCleanup(); } });
 let shuttingDown = false;
 const shutdown = async (exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info('shutdown_started');
   const deadline = setTimeout(() => process.exit(1), 25000); deadline.unref();
-  clearInterval(burnJob);
+  clearInterval(burnJob); clearInterval(matchJob);
   await job.stop();
   await new Promise<void>(resolve => io.close(() => resolve()));
   if (httpServer.listening) await new Promise<void>(resolve => httpServer.close(() => resolve()));

@@ -1332,7 +1332,14 @@ body {
 @media (min-width: 1280px) { .chat-shell { grid-template-columns: minmax(0,1fr) 17rem; } }
 @media (max-height: 500px) {
   .chat-header__identity > p:first-child { display: none; }
+  .chat-header { padding: .25rem; }
+  .chat-composer { padding: .375rem; }
+  .chat-composer > div { gap: .25rem; }
   .chat-composer textarea { min-height: 40px; height: 40px; padding-block: .35rem; }
+  .chat-composer .composer-options { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .375rem; margin-bottom: 0; font-size: .625rem; }
+  .chat-composer .composer-options label { min-height: 32px; gap: .25rem; white-space: nowrap; }
+  .chat-composer .composer-options__label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .chat-composer .composer-options select { width: 100%; max-width: 150px; min-height: 32px; height: 32px; padding-inline: .375rem; }
 }
 
 /* Native modal top layer prevents focus and pointer access to the page underneath. */
@@ -1387,3 +1394,58 @@ body {
   .chat-header__summary { gap: .25rem; }
   .chat-composer textarea { height: 44px; min-height: 44px; }
 }
+
+/* Refined NullChannel surfaces retain the original theme tokens and sharp geometry. */
+:root { --control-height: 44px; --page-gutter: clamp(1rem,4vw,3rem); }
+a, button, input, textarea, select, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid hsl(var(--cyan)); outline-offset: 4px; }
+button, select, summary { min-height: var(--control-height); }
+.home-hero { border-block: 1px solid hsl(var(--panel-border)); background: hsl(var(--panel)); }
+.home-primary, .home-secondary { min-height: 48px; display: inline-flex; justify-content: center; align-items: center; gap: .75rem; padding: .75rem 1.25rem; font-weight: 700; }
+.home-primary { background: hsl(var(--accent)); color: hsl(var(--bg)); border: 2px solid hsl(var(--accent)); }
+.home-secondary { border: 1px solid hsl(var(--panel-border)); }
+.home-primary:hover, .home-secondary:hover { transform: translateY(-2px); transition: transform 180ms ease; }
+.home-section { padding-block: clamp(2rem,5vw,5rem); border-bottom: 1px solid hsl(var(--panel-border)); }
+.home-section h2 { font-size: clamp(1.65rem,3.5vw,2.75rem); font-weight: 700; letter-spacing: -.045em; line-height: 1.15; margin-block: 1rem; }
+.home-section h3 { font-weight: 600; font-size: 1.1rem; margin-block: .75rem; }
+.home-section p { max-width: 42rem; color: hsl(var(--muted)); line-height: 1.7; }
+.home-modes { display: grid; gap: 2rem; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.home-modes article { padding-block: 1.25rem; }
+.home-modes article > svg { color: hsl(var(--cyan)); width: 32px; height: 32px; }
+.home-modes article p { margin-bottom: 1.5rem; }
+.home-steps { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 1.5rem; margin-top: 2rem; }
+.home-steps span { font-size: 1.5rem; }
+.home-steps p { margin-top: .75rem; }
+.home-feature-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2rem; margin-top: 2rem; }
+.home-feature-list article { display: flex; gap: 1rem; border-top: 1px solid hsl(var(--panel-border)); padding-top: 1rem; }
+.home-feature-list svg { flex-shrink: 0; color: hsl(var(--cyan)); margin-top: .75rem; }
+.home-comparison { width: 100%; min-width: 280px; text-align: left; border-collapse: collapse; }
+.home-comparison td, .home-comparison th { padding: 1rem .5rem; border-bottom: 1px solid hsl(var(--panel-border)); font-size: .875rem; }
+.home-comparison thead { color: hsl(var(--cyan)); }
+.home-faq details { border-bottom: 1px solid hsl(var(--panel-border)); }
+.home-faq summary { cursor: pointer; padding: 1rem 0; font-weight: 600; }
+.home-faq details p { padding-bottom: 1.25rem; }
+.home-final > svg { color: hsl(var(--cyan)); height: 40px; width: 40px; }
+.home-final h2 { margin-bottom: 2rem; }
+.home-hero h2 { animation: activity-enter 450ms ease both; }
+.home-hero p { animation: activity-enter 650ms ease both; }
+.home-hero .home-primary { animation: activity-enter 850ms ease both; }
+@media (max-width: 639px) { .home-modes, .home-feature-list { grid-template-columns: minmax(0,1fr); gap: 1rem; } .home-steps { grid-template-columns: minmax(0,1fr); gap: 1rem; } .home-steps li { display: flex; align-items: baseline; gap: 1.25rem; } .home-steps p { margin: 0; } }
+.docs-shell { max-width: 80rem; margin-inline: auto; padding: var(--page-gutter); }
+.docs-layout { display: grid; grid-template-columns: 16rem minmax(0,1fr); gap: 3rem; }
+.docs-layout aside { position: sticky; top: 1rem; align-self: start; max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.docs-layout nav { display: grid; margin-bottom: 1rem; }
+.docs-layout nav a { padding: .5rem 0; min-height: 44px; }
+.docs-topic { padding-block: 1.75rem; border-bottom: 1px solid hsl(var(--panel-border)); scroll-margin-top: 1rem; }
+.docs-topic h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: .75rem; }
+.docs-topic p { color: hsl(var(--muted)); line-height: 1.7; }
+.docs-endpoint { border-bottom: 1px solid hsl(var(--panel-border)); padding-block: .5rem; }
+.docs-endpoint summary { cursor: pointer; display: flex; align-items: center; gap: 1rem; overflow-wrap: anywhere; }
+.docs-endpoint summary code { min-width: 0; font-size: .8rem; }
+.docs-endpoint pre { padding: 1rem; background: hsl(var(--panel)); overflow-x: auto; max-width: 100%; color: hsl(var(--cyan)); }
+@media(max-width:767px) { .docs-layout { grid-template-columns: minmax(0,1fr); gap: 1rem; } .docs-layout aside { position: static; max-height: 15rem; border-bottom: 1px solid hsl(var(--panel-border)); } }
+.home-hero h2 { font-size: clamp(1.75rem,5.3vw,3.75rem); overflow-wrap: anywhere; }
+.nc-modal { color: hsl(var(--text)); background: transparent; border: 0; width: min(calc(100% - 2rem),28rem); max-height: calc(100dvh - 2rem); padding: 0; overflow-y: auto; overscroll-behavior: contain; }
+.nc-modal::backdrop { background: hsl(var(--bg) / .85); }
+
+.docs-shell h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); overflow-wrap: anywhere; }

@@ -1,0 +1,27 @@
+begin;
+insert into auth.users(id,raw_user_meta_data) values('00000000-0000-0000-0000-000000000004','{"username":"fixture_owner"}'),('00000000-0000-0000-0000-000000000005','{"username":"fixture_friend"}'),('00000000-0000-0000-0000-000000000006','{"username":"fixture_third"}');
+insert into friendships(user_low,user_high) values('00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005');
+do $$ declare a uuid:='00000000-0000-0000-0000-000000000004';b uuid:='00000000-0000-0000-0000-000000000005';c uuid:='00000000-0000-0000-0000-000000000006';j jsonb;invite uuid;rid uuid;
+begin
+ j:=nc_create_registered(a,'public','Test public','','Study','{}',2,15,'TESTPUB1');
+ perform nc_join_registered(b,'TESTPUB1');
+ begin perform nc_join_registered(c,'TESTPUB1');raise exception 'Capacity bypass';exception when others then if sqlerrm<>'ROOM_FULL' then raise;end if;end;
+ j:=nc_create_registered(a,'group','Test group','','General','{}',20,15,'TESTGRP1');
+ begin perform nc_join_registered(b,'TESTGRP1');raise exception 'Private join bypass';exception when others then if sqlerrm<>'FORBIDDEN' then raise;end if;end;
+ j:=nc_invitation_create(a,'fixture_friend','TESTGRP1');invite:=(j->>'id')::uuid;
+ if not exists(select 1 from account_notifications where reference_id=invite and user_id=b) then raise exception 'Offline invitation notice missing';end if;
+ j:=nc_invitation_respond(b,invite,true,'UNUSED00');
+ if j->>'code'<>'TESTGRP1' then raise exception 'Group invitation failed';end if;
+ if exists(select 1 from account_notifications where reference_id=invite) then raise exception 'Consumed notice retained';end if;
+ begin perform nc_invitation_respond(b,invite,true,'UNUSED00');raise exception 'Invitation reused';exception when others then if sqlerrm<>'INVITATION_EXPIRED' then raise;end if;end;
+ j:=nc_invitation_create(a,'fixture_friend',null);invite:=(j->>'id')::uuid;
+ if exists(select 1 from rooms where room_kind='direct') then raise exception 'Direct room prematurely created';end if;
+ j:=nc_invitation_respond(b,invite,true,'TESTDIR1');
+ if j->>'code'<>'TESTDIR1' then raise exception 'Direct invitation failed';end if;
+ j:=nc_invitation_create(a,'fixture_friend','TESTGRP1');invite:=(j->>'id')::uuid;
+ select id into rid from rooms where code='TESTGRP1';delete from rooms where id=rid;
+ if exists(select 1 from account_notifications where reference_id=invite) then raise exception 'Destroyed room notice retained';end if;
+ if exists(select 1 from nc_room_identities where room_id=rid) then raise exception 'Group identity retained';end if;
+ raise notice 'PASS public capacity, private membership, group invite, single consumption, direct mutual invitation, group cascade';
+end $$;
+rollback;

@@ -1,0 +1,25 @@
+import {describe,it,expect,vi,beforeEach} from 'vitest';
+import type {Request,Response} from 'express';
+const {authorize,consume,get,verifyAccount,from,logError}=vi.hoisted(()=>({authorize:vi.fn(),consume:vi.fn(),get:vi.fn(),verifyAccount:vi.fn(),from:vi.fn(),logError:vi.fn()}));
+vi.mock('../services/account.service.js',()=>({verifyAccountCookie:verifyAccount}));
+vi.mock('../config/supabase.js',()=>({supabase:{from}}));
+vi.mock('../config/env.js',()=>({env:{IMAGEKIT_TIMEOUT_MS:1000}}));
+vi.mock('../config/imagekit.js',()=>({imagekit:{url:()=> 'https://provider.test/secret-signed-url'}}));
+vi.mock('../services/media.service.js',()=>({authorizeMediaDelivery:authorize,consumeMediaDelivery:consume,uploadMedia:vi.fn(),deleteMediaByFileId:vi.fn()}));
+vi.mock('../services/room.service.js',()=>({getRoomByCode:vi.fn()}));
+vi.mock('../services/membership.service.js',()=>({isActiveMember:vi.fn()}));
+vi.mock('axios',()=>({default:{get}}));
+vi.mock('../utils/logger.js',()=>({logger:{error:logError,info:vi.fn()}}));
+import {downloadMediaController} from '../controllers/media.controller.js';
+import {socketMessageSchema} from '../schemas/message.schema.js';
+const response=()=>{const res={locals:{identity:'verified-guest'},status:vi.fn(),json:vi.fn(),setHeader:vi.fn(),send:vi.fn()};res.status.mockReturnValue(res);return res as unknown as Response;};
+const req={params:{fileId:'provider-file'},headers:{},query:{},method:'GET'} as unknown as Request;
+const metadata={file_path:'/controlled/file',mime_type:'text/plain',file_name:'bad\r\n"name.txt',file_size:5};
+beforeEach(()=>{vi.clearAllMocks();verifyAccount.mockResolvedValue(null);from.mockReturnValue({select:()=>({eq:()=>({maybeSingle:async()=>({data:{room_id:'room'},error:null})})})});get.mockResolvedValue({data:Buffer.from('hello')});});
+describe('authorized private media delivery',()=>{
+ it('does not contact provider when membership or lifecycle authorization denies access',async()=>{authorize.mockResolvedValue(null);const res=response();await downloadMediaController(req,res);expect(res.status).toHaveBeenCalledWith(404);expect(get).not.toHaveBeenCalled();});
+ it('rechecks authorization after provider latency and discards bytes if room terminated',async()=>{authorize.mockResolvedValue(metadata);consume.mockResolvedValue(null);const res=response();await downloadMediaController(req,res);expect(get).toHaveBeenCalledTimes(1);expect(authorize).toHaveBeenCalledTimes(1);expect(consume).toHaveBeenCalledTimes(1);expect(res.status).toHaveBeenCalledWith(404);expect(res.send).not.toHaveBeenCalled();});
+ it('returns bytes with no provider URL and no caching',async()=>{authorize.mockResolvedValue(metadata);consume.mockResolvedValue(metadata);const res=response();await downloadMediaController(req,res);expect(res.send).toHaveBeenCalledWith(Buffer.from('hello'));expect(res.setHeader).toHaveBeenCalledWith('Cache-Control','private, no-store');expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition','attachment; filename="bad___name.txt"');expect(JSON.stringify((res.json as ReturnType<typeof vi.fn>).mock.calls)).not.toContain('secret-signed-url');});
+ it('turns an ImageKit delivery failure into a safe service-unavailable response and logs only provider diagnostics',async()=>{authorize.mockResolvedValue(metadata);get.mockRejectedValue(Object.assign(new Error('provider response'),{response:{status:404,headers:{'ik-error':'ENOENT - Resource not found','x-request-id':'request-123'}}}));const res=response();await downloadMediaController(req,res);expect(res.status).toHaveBeenCalledWith(503);expect(res.json).toHaveBeenCalledWith(expect.objectContaining({error:expect.objectContaining({code:'MEDIA_DELIVERY_UNAVAILABLE'})}));expect(consume).not.toHaveBeenCalled();expect(logError).toHaveBeenCalledWith('media_delivery_provider_failed',expect.objectContaining({provider_status:404,provider_code:'ENOENT',provider_request_id:'request-123'}));expect(JSON.stringify(logError.mock.calls)).not.toContain('provider-file');});
+ it('accepts protected attachment URLs and rejects protocol-relative/path injection',()=>{const payload={roomCode:'ABCDEFGH',senderId:'550e8400-e29b-41d4-a716-446655440000',type:'file',fileUrl:'/api/media/files/provider-file'};expect(socketMessageSchema.safeParse(payload).success).toBe(true);for(const url of['//evil.test/file','/api/media/files/../token','/api/account/me'])expect(socketMessageSchema.safeParse({...payload,fileUrl:url}).success).toBe(false);});
+});

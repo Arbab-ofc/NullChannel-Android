@@ -16,7 +16,11 @@
     "lint": "npm run lint --workspace server && npm run lint --workspace client",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client && npm run typecheck:manual --workspace server",
     "test": "npm run test --workspace server && npm run test --workspace client",
-    "voice:manual": "node server/manual/run.mjs"
+    "voice:manual": "node server/manual/run.mjs",
+    "docs:generate": "node scripts/generate-api-docs.mjs",
+    "docs:check": "node scripts/generate-api-docs.mjs --check",
+    "db:inspect": "node scripts/migrate.mjs",
+    "db:migrate": "node scripts/migrate.mjs --apply"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

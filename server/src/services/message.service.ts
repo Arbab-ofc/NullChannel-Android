@@ -22,6 +22,10 @@ type MessageRow = {
   burn_after_read?: boolean | null;
   first_seen_at?: string | null;
   burn_expires_at?: string | null;
+  ttl_seconds?: number | null;
+  message_expires_at?: string | null;
+  view_once?: boolean;
+  view_consumed_at?: string | null;
   created_at: string;
 };
 
@@ -32,7 +36,9 @@ type ReactionRow = {
   emoji: string;
 };
 
-const messageSelect = 'id, room_id, sender_id, sender_name, type, content, file_url, file_path, file_name, file_size, mime_type, reply_to_message_id, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at, created_at';
+const messageSelect = 'id, room_id, sender_id, sender_name, type, content, file_url, file_path, file_name, file_size, mime_type, reply_to_message_id, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at, ttl_seconds, message_expires_at, view_once, view_consumed_at, created_at';
+const v12MessageSelect='id, room_id, sender_id, sender_name, type, content, file_url, file_path, file_name, file_size, mime_type, reply_to_message_id, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at, created_at';
+const withTimedDefaults=<T extends Record<string,unknown>>(message:T)=>({...message,ttl_seconds:null,message_expires_at:null,view_once:false,view_consumed_at:null});
 const v9MessageSelect = 'id, room_id, sender_id, sender_name, type, content, file_url, file_path, file_name, file_size, mime_type, reply_to_message_id, deleted, deleted_by, deleted_by_name, deleted_at, created_at';
 const v8MessageSelect = 'id, room_id, sender_id, sender_name, type, content, file_url, file_path, file_name, file_size, mime_type, reply_to_message_id, created_at';
 const v7MessageSelect = 'id, room_id, sender_id, sender_name, type, content, file_url, file_path, reply_to_message_id, created_at';
@@ -42,6 +48,7 @@ const withDeleteDefaults = <T extends Record<string, unknown>>(message: T) => ({
   ...message,
   first_seen_at: null,
   burn_expires_at: null,
+  ttl_seconds:null,message_expires_at:null,view_once:false,view_consumed_at:null,
   deleted: false,
   deleted_by: null,
   deleted_by_name: null,
@@ -52,7 +59,8 @@ const withBurnDefault = <T extends Record<string, unknown>>(message: T) => ({
   ...message,
   burn_after_read: false,
   first_seen_at: null,
-  burn_expires_at: null
+  burn_expires_at: null,
+  ttl_seconds:null,message_expires_at:null,view_once:false,view_consumed_at:null
 });
 
 const summarizeReactions = (rows: ReactionRow[]) => {
@@ -77,10 +85,7 @@ const hydrateMessages = async (messages: MessageRow[]) => {
       .select('message_id, sender_id, sender_name, emoji')
       .in('message_id', ids),
     replyIds.length > 0
-      ? supabase
-        .from('messages')
-        .select('id, sender_id, sender_name, type, content, file_url, burn_expires_at')
-        .in('id', replyIds)
+      ? (async()=>{const primary=await supabase.from('messages').select('id, sender_id, sender_name, type, content, file_url, burn_expires_at, message_expires_at, view_once, view_consumed_at').in('id',replyIds);if(primary.error&&['message_expires_at','view_once','view_consumed_at'].some(field=>primary.error?.message?.includes(field))){const fallback=await supabase.from('messages').select('id, sender_id, sender_name, type, content, file_url, burn_expires_at').in('id',replyIds);return{data:(fallback.data??[]).map(withTimedDefaults),error:fallback.error};}return primary;})()
       : Promise.resolve({ data: [], error: null })
   ]);
 
@@ -115,18 +120,21 @@ const hydrateSingleMessage = async (message: MessageRow) => {
   }
 };
 
-export const listMessages = async (roomId: string) => {
+const historyPageSize = 100;
+
+const listMessagePage = async (roomId: string, offset: number) => {
   let { data, error } = await supabase
     .from('messages')
     .select(messageSelect)
     .eq('room_id', roomId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
+  if(error&&['message_expires_at','view_once','view_consumed_at'].some(field=>error?.message?.includes(field))){const fallback=await supabase.from('messages').select(v12MessageSelect).eq('room_id',roomId).order('created_at',{ascending:true}).order('id',{ascending:true}).range(offset,offset+historyPageSize-1);data=(fallback.data??[]).map(withTimedDefaults);error=fallback.error;}
   if (error?.message?.includes('burn_after_read')) {
     const fallback = await supabase
       .from('messages')
       .select(v9MessageSelect)
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
     data = (fallback.data ?? []).map(withBurnDefault);
     error = fallback.error;
   }
@@ -135,7 +143,7 @@ export const listMessages = async (roomId: string) => {
       .from('messages')
       .select(v8MessageSelect)
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
     data = (fallback.data ?? []).map((m) => withBurnDefault(withDeleteDefaults(m)));
     error = fallback.error;
   }
@@ -144,7 +152,7 @@ export const listMessages = async (roomId: string) => {
       .from('messages')
       .select(v7MessageSelect)
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
     data = (fallback.data ?? []).map((m) => withBurnDefault(withDeleteDefaults({ ...m, file_name: null, file_size: null, mime_type: null })));
     error = fallback.error;
   }
@@ -153,7 +161,7 @@ export const listMessages = async (roomId: string) => {
       .from('messages')
       .select(legacyMessageSelect)
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
     data = (fallback.data ?? []).map((m) => withBurnDefault(withDeleteDefaults({ ...m, file_name: null, file_size: null, mime_type: null, reply_to_message_id: null })));
     error = fallback.error;
   }
@@ -162,18 +170,26 @@ export const listMessages = async (roomId: string) => {
       .from('messages')
       .select('id, room_id, sender_id, type, content, file_url, file_path, created_at')
       .eq('room_id', roomId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + historyPageSize - 1);
     data = (fallback.data ?? []).map((m) => withBurnDefault(withDeleteDefaults({ ...m, sender_name: 'Member', file_name: null, file_size: null, mime_type: null, reply_to_message_id: null })));
     error = fallback.error;
   }
   if (error) throw error;
-  try {
-    return (await hydrateMessages(((data ?? []) as MessageRow[]).filter(messageAvailable))).filter(messageAvailable);
-  } catch (hydrateError) {
-    if (hydrateError instanceof Error && hydrateError.message.includes('message_reactions')) {
-      return (data ?? []).filter(messageAvailable).map((message) => ({ ...message, reactions: [], reply_to: null }));
+  return (data ?? []) as MessageRow[];
+};
+
+/** Preserve complete temporary history without exceeding provider row or URL limits. */
+export const listMessages = async (roomId: string) => {
+  const result: Awaited<ReturnType<typeof hydrateMessages>> = [];
+  for (let offset = 0; ; offset += historyPageSize) {
+    const page = await listMessagePage(roomId, offset);
+    try {
+      result.push(...(await hydrateMessages(page.filter(messageAvailable))).filter(messageAvailable));
+    } catch (hydrateError) {
+      if (!(hydrateError instanceof Error && hydrateError.message.includes('message_reactions'))) throw hydrateError;
+      result.push(...page.filter(messageAvailable).map(message => ({ ...message, reactions: [], reply_to: null })));
     }
-    throw hydrateError;
+    if (page.length < historyPageSize) return result;
   }
 };
 
@@ -192,10 +208,12 @@ export const saveMessage = async (roomId: string, payload: MessagePayload) => {
       file_size: payload.fileSize ?? null,
       mime_type: payload.mimeType ?? null,
       reply_to_message_id: payload.replyToMessageId ?? null,
-      burn_after_read: payload.burnAfterRead ?? false
+      burn_after_read: payload.burnAfterRead ?? false,
+      ttl_seconds:payload.ttlSeconds??null,view_once:payload.viewOnce??false
     })
     .select(messageSelect)
     .single();
+  if(error&&['ttl_seconds','message_expires_at','view_once','view_consumed_at'].some(field=>error?.message?.includes(field))){if(payload.ttlSeconds||payload.viewOnce)throw new Error('Timed and view-once messages require migration v20.');const fallback=await supabase.from('messages').insert({room_id:roomId,sender_id:payload.senderId,sender_name:payload.senderName,type:payload.type,content:payload.content??null,file_url:payload.fileUrl??null,file_path:payload.filePath??null,file_name:payload.fileName??null,file_size:payload.fileSize??null,mime_type:payload.mimeType??null,reply_to_message_id:payload.replyToMessageId??null,burn_after_read:payload.burnAfterRead??false}).select(v12MessageSelect).single();data=fallback.data?withTimedDefaults(fallback.data):null;error=fallback.error;}
   if (error?.message?.includes('burn_after_read')) {
     if (payload.burnAfterRead) {
       throw new Error('Database schema is outdated. Run docs/supabase-migration-v10.sql and retry.');
@@ -303,9 +321,10 @@ export const saveMessage = async (roomId: string, payload: MessagePayload) => {
 export const getMessageById = async (messageId: string) => {
   let { data, error } = await supabase
     .from('messages')
-    .select('id, room_id, sender_id, sender_name, type, file_path, created_at, reply_to_message_id, file_name, file_size, mime_type, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at')
+    .select('id, room_id, sender_id, sender_name, type, file_path, created_at, reply_to_message_id, file_name, file_size, mime_type, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at, ttl_seconds, message_expires_at, view_once, view_consumed_at')
     .eq('id', messageId)
     .maybeSingle();
+  if(error&&['message_expires_at','view_once','view_consumed_at'].some(field=>error?.message?.includes(field))){const fallback=await supabase.from('messages').select('id, room_id, sender_id, sender_name, type, file_path, created_at, reply_to_message_id, file_name, file_size, mime_type, deleted, deleted_by, deleted_by_name, deleted_at, burn_after_read, first_seen_at, burn_expires_at').eq('id',messageId).maybeSingle();data=fallback.data?withTimedDefaults(fallback.data):null;error=fallback.error;}
   if (error?.message?.includes('burn_after_read')) {
     const fallback = await supabase
       .from('messages')
@@ -386,6 +405,7 @@ export const updateMessageContent = async (messageId: string, content: string) =
     .eq('id', messageId)
     .select(messageSelect)
     .single();
+  if(error&&['message_expires_at','view_once','view_consumed_at'].some(field=>error?.message?.includes(field))){const fallback=await supabase.from('messages').update({content}).eq('id',messageId).select(v12MessageSelect).single();data=fallback.data?withTimedDefaults(fallback.data):null;error=fallback.error;}
   if (error?.message?.includes('deleted')) {
     const fallback = await supabase
       .from('messages')
@@ -467,8 +487,8 @@ export const hardDeleteMessageById = async (messageId: string) => {
   if (error) throw error;
 };
 
-export const messageAvailable = (message: { burn_expires_at?: string | null }) =>
-  !message.burn_expires_at || Date.parse(message.burn_expires_at) > Date.now();
+export const messageAvailable = (message: { burn_expires_at?: string | null;message_expires_at?:string|null }) =>
+  (!message.burn_expires_at || Date.parse(message.burn_expires_at) > Date.now())&&(!message.message_expires_at||Date.parse(message.message_expires_at)>Date.now());
 export const markMessageSeen = async (roomId: string, messageId: string, identity: string) => {
   const { data, error } = await supabase.rpc('mark_message_seen', { p_room: roomId, p_message: messageId, p_sender: identity });
   if (error) throw error;

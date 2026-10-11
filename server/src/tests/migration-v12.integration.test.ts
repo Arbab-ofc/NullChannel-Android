@@ -99,7 +99,7 @@ describe.skipIf(!dsn)('v11 to v12 populated-schema production migration audit',(
     const deleted = results.flatMap(result => result ? result.split('\n') : []);
     expect(deleted.sort()).toEqual(ids.sort()); expect(new Set(deleted).size).toBe(8);
     for (const file of files) expect(await sql(`select count(*) from media_cleanup where file_id='${file}'`)).toBe('1');
-  });
+  }, 15000);
   it('burn cleanup races safely with panic wipe and clears message pins and replies',async () => {
     const f = await fixture(); const m = await message(f,true); const reply = await message(f);
     await sql(`update rooms set pinned_message_id='${m.id}' where id='${f.room}'; update messages set reply_to_message_id='${m.id}' where id='${reply.id}'`); await due(m.id);

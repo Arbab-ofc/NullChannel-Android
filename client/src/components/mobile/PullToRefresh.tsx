@@ -3,7 +3,7 @@ import {RefreshCw} from 'lucide-react';
 export const REFRESH_THRESHOLD=72;
 export function refreshIntent(dx:number,dy:number){return dy>=REFRESH_THRESHOLD&&dy>Math.abs(dx)*1.5;}
 /** Native edge/back and iOS refresh gestures retain priority. No polling. */
-export function PullToRefresh({children,refresh}:{children:ReactNode;refresh:()=>Promise<unknown>}) {
+export function PullToRefresh({children,refresh,showRefreshButton=true}:{children:ReactNode;refresh:()=>Promise<unknown>;showRefreshButton?:boolean}) {
  const ref=useRef<HTMLDivElement>(null),pending=useRef(false);const [distance,setDistance]=useState(0),[loading,setLoading]=useState(false),[error,setError]=useState('');
  const trigger=useRef<()=>Promise<void>>(async()=>undefined);
  const latest=useRef(refresh);latest.current=refresh;
@@ -24,5 +24,5 @@ export function PullToRefresh({children,refresh}:{children:ReactNode;refresh:()=
   node.addEventListener('touchstart',begin,{passive:true});node.addEventListener('touchmove',move,{passive:false});node.addEventListener('touchend',end);node.addEventListener('touchcancel',cancel);
   return()=>{live=false;node.removeEventListener('touchstart',begin);node.removeEventListener('touchmove',move);node.removeEventListener('touchend',end);node.removeEventListener('touchcancel',cancel);};
  },[]);
- return <div ref={ref} className="refresh-list"><div className="refresh-indicator" style={{height:loading?40:distance*.4}} role="status">{(loading||distance>12)&&<RefreshCw aria-label={loading?'Refreshing':distance>=REFRESH_THRESHOLD?'Release to refresh':'Pull to refresh'} className={loading?'loading-spin':''}/>}</div><button type="button" className="list-refresh-button" disabled={loading} onClick={()=>void trigger.current()} aria-label="Refresh list"><RefreshCw aria-hidden="true"/>Refresh</button>{error&&<p role="alert">{error}</p>}{children}</div>;
+ return <div ref={ref} className="refresh-list"><div className="refresh-indicator" style={{height:loading?40:distance*.4}} role="status">{(loading||distance>12)&&<RefreshCw aria-label={loading?'Refreshing':distance>=REFRESH_THRESHOLD?'Release to refresh':'Pull to refresh'} className={loading?'loading-spin':''}/>}</div>{showRefreshButton&&<button type="button" className="list-refresh-button" disabled={loading} onClick={()=>void trigger.current()} aria-label="Refresh list"><RefreshCw aria-hidden="true"/>Refresh</button>}{error&&<p role="alert">{error}</p>}{children}</div>;
 }

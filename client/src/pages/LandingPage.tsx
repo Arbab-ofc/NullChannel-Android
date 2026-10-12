@@ -1,5 +1,4 @@
-import { PullToRefresh } from '../components/mobile/PullToRefresh';
-import { EmptyState } from '../components/common/EmptyState';
+import { ActiveRoomsSection } from '../components/rooms/ActiveRoomsSection';
 import { Brand } from '../components/common/Brand';
 import { SignalArt } from '../components/common/SignalArt';
 import { ProductPreview } from '../components/common/ProductPreview';
@@ -7,7 +6,7 @@ import '../styles/landing.css';
 import { Modal } from '../components/common/Modal';
 import { TimerReset, UserCheck, MessageCircle, Radio, ArrowRight, Fingerprint, Users, LockKeyhole, ArrowUpRight, Sparkles, Zap, ShieldCheck, Mic } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { NavigationOverlay } from '../components/common/NavigationOverlay';
 import { Button } from '../components/common/Button';
@@ -70,7 +69,7 @@ export default function LandingPage() {
   const refreshRooms=useCallback(()=>{
     if(roomRequest.current)return roomRequest.current;
     setActiveRoomsLoading(true);setActiveRoomsError('');
-    const request=api.get(`/users/${senderId}/rooms`).then(res=>setActiveRooms(res.data.data??[])).catch(()=>setActiveRoomsError('Unable to load your rooms. Use Refresh to try again.')).finally(()=>{setActiveRoomsLoading(false);roomRequest.current=null;});roomRequest.current=request;return request;
+    const request=api.get(`/users/${senderId}/rooms`).then(res=>{if(!Array.isArray(res.data.data))throw new Error('Invalid room-list response');setActiveRooms(res.data.data);}).catch(()=>setActiveRoomsError('Unable to load your rooms. Use Refresh to try again.')).finally(()=>{setActiveRoomsLoading(false);roomRequest.current=null;});roomRequest.current=request;return request;
   },[senderId]);
   useEffect(()=>{void refreshRooms();},[refreshRooms]);
 
@@ -81,11 +80,6 @@ export default function LandingPage() {
     sections.forEach(section=>{section.classList.add('will-reveal');observer.observe(section);});
     return()=>{observer.disconnect();sections.forEach(section=>section.classList.remove('will-reveal'));};
   },[]);
-
-  const grouped = useMemo(() => ({
-    private: activeRooms.filter((r) => (r.room_type ?? 'private') === 'private').slice(0, 6),
-    group: activeRooms.filter((r) => (r.room_type ?? 'private') === 'group').slice(0, 6)
-  }), [activeRooms]);
 
   return <main className="landing-page">
     <div className="landing-container">
@@ -137,41 +131,8 @@ export default function LandingPage() {
         ['Does ending a room remove my friends?','No. Friendship persists. Conversations do not.']
       ].map(([question,answer])=><details key={question}><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div></section>
       <section className="landing-final"><span className="nc-eyebrow">Some moments don’t need a history</span><h2>Stay connected.<br/><span>Travel light.</span></h2><div className="hero-actions"><Link to="/signup" className="nc-button nc-button--primary">Get Started <ArrowUpRight aria-hidden="true"/></Link><Button onClick={()=>setCreateType('private')}>Start anonymously</Button></div><SignalArt/></section>
-      <PullToRefresh refresh={refreshRooms}><section className="neo-panel p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="code-font text-xs tracking-[0.2em] text-cyan">YOUR ACTIVE ROOMS</p>
-          {activeRoomsError && <p role="alert">{activeRoomsError}</p>}
-          {activeRoomsLoading && <LoadingSignal label="Syncing rooms" className="code-font text-xs uppercase tracking-[0.16em] text-muted" />}
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div>
-            <h3 className="text-sm font-bold uppercase">Active Private</h3>
-            <div className="mt-2 space-y-2">
-              {activeRoomsLoading && <RoomLoadingRows />}
-              {!activeRoomsLoading && !activeRoomsError && grouped.private.length === 0 && <EmptyState title="Your space is waiting." description="Create a private room to get started."/>}
-              {grouped.private.map((r) => (
-                <button key={`p-${r.code}`} className="neo-action w-full border-2 border-accent/60 px-3 py-2 text-left" onClick={() => nav(`/chat/${r.code}`)}>
-                  <p className="code-font text-sm tracking-widest">{r.code}</p>
-                  <p className="text-xs text-muted">{r.room_name} • Active</p>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h3 className="text-sm font-bold uppercase">Active Groups</h3>
-            <div className="mt-2 space-y-2">
-              {activeRoomsLoading && <RoomLoadingRows />}
-              {!activeRoomsLoading && !activeRoomsError && grouped.group.length === 0 && <EmptyState title="Make room for your people." description="Create a temporary group to get started."/>}
-              {grouped.group.map((r) => (
-                <button key={`g-${r.code}`} className="neo-action w-full border-2 border-accent/60 px-3 py-2 text-left" onClick={() => nav(`/chat/${r.code}`)}>
-                  <p className="code-font text-sm tracking-widest">{r.code}</p>
-                  <p className="text-xs text-muted">{r.room_name} • Active</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section></PullToRefresh>
+      <ActiveRoomsSection rooms={activeRooms} loading={activeRoomsLoading} error={activeRoomsError} refresh={refreshRooms} openRoom={code => nav(`/chat/${code}`)} createRoom={setCreateType}/>
+
     </div>
     {createType && (
       <Modal titleId="create-channel-title" close={() => { if (!createBusy) setCreateType(null); }}>
@@ -224,10 +185,3 @@ export default function LandingPage() {
     )}
   </main>;
 }
-
-const RoomLoadingRows = () => (
-  <>
-    <div className="loading-row h-[58px]" />
-    <div className="loading-row h-[58px]" />
-  </>
-);

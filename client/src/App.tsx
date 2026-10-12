@@ -12,6 +12,7 @@ const NotFoundPage=lazy(()=>import('./pages/NotFoundPage'));
 const AuthPage=lazy(()=>import('./pages/AuthPage'));
 import { AccountProvider } from './hooks/useAccount';
 import { AccountLayout } from './components/account/AccountLayout';
+import { GuestOnlyRoute } from './components/account/GuestOnlyRoute';
 const DashboardPage=lazy(()=>import('./pages/AccountPages').then(module=>({default:module.DashboardPage})));
 const FriendsPage=lazy(()=>import('./pages/AccountPages').then(module=>({default:module.FriendsPage})));
 const NotificationsPage=lazy(()=>import('./pages/AccountPages').then(module=>({default:module.NotificationsPage})));
@@ -32,8 +33,8 @@ export default function App() {
     <Route path="/security" element={<DocsPage />} />
     <Route path="/terms" element={<main className="docs-shell"><h1 className="text-3xl font-bold">Terms of use</h1><p className="mt-6">Use NullChannel responsibly. Do not share unlawful content, harass participants or misuse account and room access. Conversations expire; downloaded copies and screenshots may persist outside the application. Report abusive activity through configured support channels.</p><a href="/docs#privacy" className="text-cyan">Read privacy and deletion details</a></main>} />
     <Route path="/chat/:code" element={<ChatPage />} />
-    <Route path="/login" element={<AuthPage mode="login" />} />
-    <Route path="/signup" element={<AuthPage mode="signup" />} />
+    <Route path="/login" element={<GuestOnlyRoute><AuthPage mode="login" /></GuestOnlyRoute>} />
+    <Route path="/signup" element={<GuestOnlyRoute><AuthPage mode="signup" /></GuestOnlyRoute>} />
     <Route path="/forgot-password" element={<AuthPage mode="forgot-password" />} />
     <Route path="/reset-password" element={<AuthPage mode="reset-password" />} />
     <Route element={<AccountLayout />}>

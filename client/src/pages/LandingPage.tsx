@@ -16,6 +16,7 @@ import { api } from '../lib/api';
 import { useLocalSender } from '../hooks/useLocalSender';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 import { LoadingSignal } from '../components/common/LoadingSignal';
+import { useOptionalAccount } from '../hooks/useAccount';
 
 const expiryOptions = [
   { label: '15 Min', value: 15 },
@@ -27,6 +28,8 @@ const expiryOptions = [
 export default function LandingPage() {
   const nav = useNavigate();
   const location=useLocation();
+  const profile=useOptionalAccount()?.profile;
+  const accountHome=profile?'/dashboard':null;
   const senderId = useLocalSender();
   const [joinCode, setJoinCode] = useState('');
   const [roomName, setRoomName] = useState('');
@@ -87,13 +90,13 @@ export default function LandingPage() {
 
   return <main className="landing-page">
     <div className="landing-container landing-header-frame">
-      <FloatingHeader className="landing-header" panelContent={<><nav aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink><Link to="/login">Log in</Link><Link to="/signup">Get started</Link></nav><div className="infinite-navigation__actions"><ThemeToggle/><Button onClick={()=>setCreateType('private')}>Create Private</Button><Button onClick={()=>setCreateType('group')}>Create Group</Button></div></>}>
+      <FloatingHeader className="landing-header" panelContent={<><nav aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink>{profile?<Link to="/dashboard">Open Dashboard</Link>:<><Link to="/login">Log in</Link><Link to="/signup">Get started</Link></>}</nav><div className="infinite-navigation__actions"><ThemeToggle/><Button onClick={()=>setCreateType('private')}>Create Private</Button><Button onClick={()=>setCreateType('group')}>Create Group</Button></div></>}>
         <Link to="/" aria-label="NullChannel home"><Brand /></Link>
         <nav className="landing-nav" aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink></nav>
-        <div className="landing-header__actions"><ThemeToggle/><Link to="/login" className="landing-login">Log in</Link><Link to="/signup" className="nc-button nc-button--primary landing-signup">Get started <ArrowUpRight aria-hidden="true" size={16}/></Link><button className="landing-menu nc-button nc-button--secondary" aria-label="Toggle menu" aria-expanded={menuOpen} aria-controls="public-navigation" onClick={()=>setMenuOpen(value=>!value)}><Menu aria-hidden="true" size={20}/></button></div>
+        <div className="landing-header__actions"><ThemeToggle/>{profile?<Link to="/dashboard" className="nc-button nc-button--primary landing-signup">Open Dashboard <ArrowUpRight aria-hidden="true" size={16}/></Link>:<><Link to="/login" className="landing-login">Log in</Link><Link to="/signup" className="nc-button nc-button--primary landing-signup">Get started <ArrowUpRight aria-hidden="true" size={16}/></Link></>}<button className="landing-menu nc-button nc-button--secondary" aria-label="Toggle menu" aria-expanded={menuOpen} aria-controls="public-navigation" onClick={()=>setMenuOpen(value=>!value)}><Menu aria-hidden="true" size={20}/></button></div>
       </FloatingHeader>
       <NavigationOverlay desktopBreakpoint={1024} id="public-navigation" title="Make yourself at home." open={menuOpen} close={closeMenu} immediate={createType !== null}>
-        <ThemeToggle/><section className="command-group"><h3>Discover</h3><div><a href="#features" onClick={closeMenu}>Features</a><a href="#how-it-works" onClick={closeMenu}>How it works</a><Link to="/explore">Explore</Link><Link to="/docs">Documentation</Link><Link to="/login">Login</Link><Link to="/signup">Sign Up</Link></div></section>
+        <ThemeToggle/><section className="command-group"><h3>Discover</h3><div><a href="#features" onClick={closeMenu}>Features</a><a href="#how-it-works" onClick={closeMenu}>How it works</a><Link to="/explore">Explore</Link><Link to="/docs">Documentation</Link>{profile?<Link to="/dashboard">Open Dashboard</Link>:<><Link to="/login">Login</Link><Link to="/signup">Sign Up</Link></>}</div></section>
         <section className="command-group"><h3>Your next conversation</h3><div><Button onClick={()=>{closeMenu();setCreateType('private');}}>Create Private</Button><Button onClick={()=>{closeMenu();setCreateType('group');}}>Create Group</Button></div></section>
       </NavigationOverlay>
     </div>
@@ -103,7 +106,7 @@ export default function LandingPage() {
           <p className="nc-eyebrow">A space for the here and now</p>
           <KineticHeadline/>
           <p className="hero-description">Keep the people. Leave the history.<br/>Real connections, in conversations made to disappear.</p>
-          <div className="hero-actions"><Link to="/signup" className="nc-button nc-button--primary">Get Started <ArrowUpRight aria-hidden="true"/></Link><Button variant="ghost" onClick={()=>setCreateType('private')}>Continue Anonymously <ArrowRight aria-hidden="true"/></Button></div>
+          <div className="hero-actions"><Link to={accountHome??'/signup'} className="nc-button nc-button--primary">{profile?'Open Dashboard':'Get Started'} <ArrowUpRight aria-hidden="true"/></Link><Button variant="ghost" onClick={()=>setCreateType('private')}>Continue Anonymously <ArrowRight aria-hidden="true"/></Button></div>
           <div className="hero-footnote"><span className="signal-dot"/> No account needed to start a guest room.</div>
         </div>
         <div className="hero-visual"><SignalArt/><div className="hero-sticker" aria-hidden="true"><Sparkles size={16}/> here, then gone.</div><FloatingPreview/></div>
@@ -117,7 +120,7 @@ export default function LandingPage() {
       <section id="features" className="landing-section" data-reveal>
         <div className="section-heading"><div><p className="nc-eyebrow">Less baggage. More connection.</p><h2>All the ways to be here.</h2></div><p>A familiar chat experience,<br/>with a different relationship to time.</p></div>
         <div className="feature-bento">
-          <article className="feature-bento__lead"><SignalArt/><Users aria-hidden="true"/><span className="feature-tag">Your people</span><h3>Keep your friends.<br/>Lose the history.</h3><p>Your account and friendships stay. Each conversation starts fresh.</p><Link to="/signup">Create an account <ArrowUpRight aria-hidden="true" size={18}/></Link></article>
+          <article className="feature-bento__lead"><SignalArt/><Users aria-hidden="true"/><span className="feature-tag">Your people</span><h3>Keep your friends.<br/>Lose the history.</h3><p>Your account and friendships stay. Each conversation starts fresh.</p><Link to={accountHome??'/signup'}>{profile?'Open Dashboard':'Create an account'} <ArrowUpRight aria-hidden="true" size={18}/></Link></article>
           <article><TimerReset aria-hidden="true"/><h3>A conversation with an ending.</h3><p>Finite room lifetimes, timed messages and Burn Mode: 60 seconds after another participant sees it.</p><span className="feature-detail">Temporary by design</span></article>
           <article><Fingerprint aria-hidden="true"/><h3>Meet as a ghost.</h3><p>Random matching starts with a session alias. Profile reveal and staying connected need mutual consent.</p><Link to="/match">Find someone <ArrowUpRight aria-hidden="true" size={18}/></Link></article>
           <article><Mic aria-hidden="true"/><h3>More than words.</h3><p>One-to-one voice calls, voice notes, images and files. The conversation stays temporary.</p><span className="feature-detail">Talk. Share. Be here.</span></article>
@@ -135,7 +138,7 @@ export default function LandingPage() {
         ['Can I reveal my identity?','Random sessions begin with temporary aliases. Only mutual consent in that session reveals permitted profile information.'],
         ['Does ending a room remove my friends?','No. Friendship persists. Conversations do not.']
       ].map(([question,answer])=><details key={question}><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div></section>
-      <section className="landing-final"><span className="nc-eyebrow">Some moments don’t need a history</span><h2>Stay connected.<br/><span>Travel light.</span></h2><div className="hero-actions"><Link to="/signup" className="nc-button nc-button--primary">Get Started <ArrowUpRight aria-hidden="true"/></Link><Button onClick={()=>setCreateType('private')}>Start anonymously</Button></div><SignalArt/></section>
+      <section className="landing-final"><span className="nc-eyebrow">Some moments don’t need a history</span><h2>Stay connected.<br/><span>Travel light.</span></h2><div className="hero-actions"><Link to={accountHome??'/signup'} className="nc-button nc-button--primary">{profile?'Open Dashboard':'Get Started'} <ArrowUpRight aria-hidden="true"/></Link><Button onClick={()=>setCreateType('private')}>Start anonymously</Button></div><SignalArt/></section>
       <ActiveRoomsSection rooms={activeRooms} loading={activeRoomsLoading} error={activeRoomsError} refresh={refreshRooms} openRoom={code => nav(`/chat/${code}`)} createRoom={setCreateType}/>
 
     </div>

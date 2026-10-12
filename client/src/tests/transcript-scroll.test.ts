@@ -27,3 +27,6 @@ it('follows own messages and does not count an expired unread message',() => {
   element.scrollTop = 150; scroll.onScroll(); scroll.beforeMessage('d',false); scroll.sync(['a','b','c']); expect(notify).toHaveBeenLastCalledWith(0);
   scroll.beforeMessage('own',true); height += 100; scroll.sync(['a','b','c','own']); expect(element.scrollTop).toBe(height);
 });
+it('reports distance independently of unread and smooth newest can be interrupted by user scrolling',()=>{
+ const away=vi.fn();scroll=new TranscriptScroll(element,notify,away);scroll.sync(['a','b','c']);element.scrollTop=150;scroll.onScroll();expect(away).toHaveBeenLastCalledWith(true);element.scrollTo=vi.fn();scroll.newest(true);expect(element.scrollTo).toHaveBeenCalledWith({top:1000,behavior:'smooth'});element.scrollTop=200;scroll.interrupt();scroll.beforeMessage('d',false);expect(notify).toHaveBeenLastCalledWith(1);
+});

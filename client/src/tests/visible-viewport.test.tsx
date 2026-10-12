@@ -26,3 +26,8 @@ it('removes visual viewport listeners and pending frames on unmount',async () =>
   await act(async () => root.render(null)); expect(remove).toHaveBeenCalledTimes(2);
   await act(async () => vi.advanceTimersByTimeAsync(32));
 });
+it('detects an editable keyboard reduction and preserves normal viewport behavior on blur',async()=>{
+ const {useViewportState}=await import('../hooks/useVisibleViewport');
+ function KeyboardFixture(){const state=useViewportState();return <div data-keyboard={state.keyboardOpen}><input aria-label="Composer"/></div>;}
+ await act(async()=>root.render(<KeyboardFixture/>));const input=host.querySelector('input')!;await act(async()=>input.focus());visible.height=430;visible.dispatchEvent(new Event('resize'));await act(async()=>vi.advanceTimersByTimeAsync(32));expect(host.firstElementChild?.getAttribute('data-keyboard')).toBe('true');await act(async()=>input.blur());await act(async()=>vi.advanceTimersByTimeAsync(32));expect(host.firstElementChild?.getAttribute('data-keyboard')).toBe('false');
+});

@@ -1,3 +1,9 @@
+import { ResponsiveActions } from '../components/mobile/ResponsiveActions';
+import { Skeleton } from '../components/common/Skeleton';
+import { AttachmentPreview, attachmentError, type PendingAttachment } from '../components/chat/AttachmentPreview';
+import { SwipeableMessage } from '../components/chat/SwipeableMessage';
+import { FloatingDateSeparator, JumpToLatest } from '../components/chat/TranscriptChrome';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import { EmptyState } from '../components/common/EmptyState';
 import { Modal } from '../components/common/Modal';
 import { Brand } from '../components/common/Brand';
@@ -20,7 +26,7 @@ import { VoiceCallButton, VoiceCallUI } from '../components/call/VoiceCallUI';
 import { callIsActive } from '../lib/voice-call';
 import { useSocket } from '../hooks/useSocket';
 import { useLocalSender } from '../hooks/useLocalSender';
-import { useVisibleViewport } from '../hooks/useVisibleViewport';
+import { useViewportState } from '../hooks/useVisibleViewport';
 import { useTranscriptScroll } from '../hooks/useTranscriptScroll';
 import { useSeenMessages } from '../hooks/useSeenMessages';
 import { ExpiryCountdown } from '../components/chat/ExpiryCountdown';
@@ -63,6 +69,8 @@ export default function ChatPage() {
   const [myRooms, setMyRooms] = useState<Array<{ code: string; room_name?: string; room_type?: 'private' | 'group'; expires_at: string }>>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [attachmentSheet,setAttachmentSheet]=useState(false);
+  const [historyLoading,setHistoryLoading]=useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
@@ -112,7 +120,14 @@ export default function ChatPage() {
   const historyEpoch = useRef(0);
   const dirtyMessageIds = useRef(new Set<string>());
   const wipedAt = useRef(0);
-  const viewport = useVisibleViewport();
+  const {style:viewport}=useViewportState();
+  const connectionStatus = useConnectionStatus();
+  const [attachment,setAttachment]=useState<PendingAttachment|null>(null);
+  const attachmentBusy=useRef(false);
+  const currentAccess=useRef({code,isJoined});currentAccess.current={code,isJoined};
+  useEffect(()=>{setAttachment(null);setAttachmentSheet(false);setMessageMenuId(null);},[code,isJoined]);
+  useEffect(()=>{if(attachment?.status!=='uploaded')return;const timer=setTimeout(()=>setAttachment(null),1500);return()=>clearTimeout(timer);},[attachment?.status]);
+  const selectAttachment=(file:File,kind:'image'|'file')=>{if(attachmentBusy.current)return;const error=attachmentError(file,kind);setAttachment({file,kind,status:error?'failed':'ready',error});};
   const transcript = useTranscriptScroll(messages,notices,code);
   const receiveMessage = transcript.receive;
   useSeenMessages(transcript.element,code.toUpperCase(),senderId,messages,isJoined);
@@ -127,13 +142,15 @@ export default function ChatPage() {
 
   const { call: voiceCall, view: voiceView } = useVoiceCall(socket,code.toUpperCase(),!!room && room.room_type === 'private' && isJoined && !expiredNotice,room?.expires_at);
 
-  useEffect(() => { if (voiceView.phase === 'incoming') { setExtendModalOpen(false); setMenuOpen(false); } },[voiceView.phase]);
+  useEffect(() => { if (voiceView.phase === 'incoming') { setExtendModalOpen(false); setMenuOpen(false); setAttachmentSheet(false); setMessageMenuId(null); } },[voiceView.phase]);
 
   const loadHistory = useCallback(async (roomCode: string) => {
     const epoch = ++historyEpoch.current;
     const changed = new Set<string>();
     dirtyMessageIds.current = changed;
-    const response = await api.get(`/rooms/${roomCode}/messages`);
+    setHistoryLoading(true);
+    let response;
+    try {response=await api.get(`/rooms/${roomCode}/messages`);}finally{if(historyEpoch.current===epoch)setHistoryLoading(false);}
     if (historyEpoch.current !== epoch) return;
     setMessages(current => mergeHistory(response.data.data as Msg[], current, changed, wipedAt.current));
   }, []);
@@ -464,8 +481,8 @@ export default function ChatPage() {
   };
 
   const sendImage = async (file: File) => {
-    if (!room || !isJoined) return;
-    if (!senderName) return;
+    if (!room || !isJoined || !socket.connected) return false;
+    if (!senderName) return false;
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type) || file.size > 5 * 1024 * 1024) return;
 
@@ -477,9 +494,11 @@ export default function ChatPage() {
       form.append('senderId', senderId);
       form.append('type', 'image');
       const res = await api.post('/media/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: event=>{const progress=event.total?Math.min(100,Math.round(event.loaded/event.total*100)):undefined;setAttachment(previous=>previous?.file===file?{...previous,progress}:previous);}
       });
 
+      if(currentAccess.current.code!==code || !currentAccess.current.isJoined || !socket.connected)throw new Error('Room access changed after upload');
       socket.emit('send-message', {
         roomCode: room.code,
         senderId,
@@ -493,16 +512,17 @@ export default function ChatPage() {
       ...(ttlSeconds?{ttlSeconds}: {})
       });
       setReplyingTo(null);
+      return true;
     } catch {
-      showToast('Image upload failed. Please retry.');
+      return false;
     } finally {
       setUploadingImage(false);
     }
   };
 
   const sendFile = async (file: File) => {
-    if (!room || !isJoined) return;
-    if (!senderName) return;
+    if (!room || !isJoined || !socket.connected) return false;
+    if (!senderName) return false;
     if (file.size > 15 * 1024 * 1024) {
       showToast('File limit is 15 MB');
       return;
@@ -516,9 +536,11 @@ export default function ChatPage() {
       form.append('senderId', senderId);
       form.append('type', 'file');
       const res = await api.post('/media/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: event=>{const progress=event.total?Math.min(100,Math.round(event.loaded/event.total*100)):undefined;setAttachment(previous=>previous?.file===file?{...previous,progress}:previous);}
       });
 
+      if(currentAccess.current.code!==code || !currentAccess.current.isJoined || !socket.connected)throw new Error('Room access changed after upload');
       socket.emit('send-message', {
         roomCode: room.code,
         senderId,
@@ -536,12 +558,22 @@ export default function ChatPage() {
       ...(ttlSeconds?{ttlSeconds}: {})
       });
       setReplyingTo(null);
-      showToast('File sent');
+      return true;
+
     } catch {
-      showToast('File upload failed');
+      return false;
     } finally {
       setUploadingFile(false);
     }
+  };
+
+  const sendAttachment=async()=>{
+    if(!attachment || attachment.status!=='ready' || attachmentBusy.current || !socket.connected)return;
+    attachmentBusy.current=true;const selected=attachment;
+    setAttachment({...selected,status:'uploading'});
+    try {const success=await (selected.kind==='image'?sendImage(selected.file):sendFile(selected.file));
+      setAttachment(previous=>previous?.file===selected.file?{...previous,status:success?'uploaded':'failed',error:success?undefined:'Upload could not be confirmed. Automatic retry is disabled to avoid duplicate media.'}:previous);
+    } finally {attachmentBusy.current=false;}
   };
 
   const emitVoiceMessage = async (blob: Blob) => {
@@ -912,7 +944,8 @@ export default function ChatPage() {
     </div>
   </main>;
 
-  return <main style={viewport} className="chat-shell bg-bg">
+  return <main style={viewport} data-compact={viewport.height ? parseFloat(String(viewport.height)) < 500 : undefined} className="chat-shell bg-bg">
+    {attachmentSheet && <Modal sheet titleId="attachment-heading" close={()=>setAttachmentSheet(false)}><h2 id="attachment-heading">Share an attachment</h2><p className="my-3 text-muted">Preview your file before sending.</p><div className="sheet-actions"><Button onClick={()=>{document.getElementById('chat-image-input')?.click();setAttachmentSheet(false);}}><ImagePlus aria-hidden="true"/>Image · up to 5 MB</Button><Button onClick={()=>{document.getElementById('chat-file-input')?.click();setAttachmentSheet(false);}}><FileText aria-hidden="true"/>File · up to 15 MB</Button></div><Button className="mt-4" onClick={()=>setAttachmentSheet(false)}>Close</Button></Modal>}
     {!senderName && <Modal titleId="chat-name-title" close={()=>nav('/')}>
       <div className="neo-panel w-full max-w-md p-6">
         <p className="code-font text-xs tracking-[0.2em] text-cyan">ENTER DISPLAY NAME</p>
@@ -984,7 +1017,7 @@ export default function ChatPage() {
             <button type="button" className="chat-menu-toggle neo-action xl:hidden" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle chat menu" aria-expanded={menuOpen} aria-controls="chat-command-center"><Menu className="h-5 w-5" /></button>
           </div>
           <span role="status" className={`connection-status ${isJoined && connected ? '' : 'connection-status--idle'}`}>
-            {isJoined && connected && <Radio className="connection-status__icon" />}{!isJoined ? 'Not Joined' : connected ? 'Connected' : socket.active ? 'Reconnecting…' : 'Disconnected'}
+            {isJoined && connected && <Radio className="connection-status__icon" />}{!isJoined ? 'Not Joined' : connectionStatus}
           </span>
         </div>
         <CommandCenter immediate={extendModalOpen || voiceView.phase === 'incoming'} open={menuOpen} close={closeMenu} code={room.code}>
@@ -1036,7 +1069,7 @@ export default function ChatPage() {
         </section>
       )}
 
-      <section ref={transcript.ref} aria-label="Messages" className="chat-transcript neo-panel min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:p-4 lg:p-5">
+      <div className="transcript-frame"><FloatingDateSeparator element={transcript.element} revision={messages}/><JumpToLatest visible={transcript.away} unread={transcript.unread} onClick={transcript.newest}/><section ref={transcript.ref} aria-label="Messages" className="chat-transcript neo-panel min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:p-4 lg:p-5">
         <div className="transcript-content space-y-3">
         {!isJoined && room.creator_id !== senderId && (
           <div className="border-2 border-punch bg-panel px-3 py-2 text-xs uppercase tracking-wider text-muted">
@@ -1053,7 +1086,8 @@ export default function ChatPage() {
             {n.text}
           </div>
         ))}
-        {messages.length === 0 && <EmptyState title="No transmissions yet." description="Send the first message. This conversation is yours to start."/>}
+        {historyLoading && messages.length === 0 && <Skeleton kind="messages" label="Loading message history"/>}
+        {!historyLoading && !joinError && messages.length === 0 && <EmptyState title="Nothing here yet." description="Start the conversation."/>}
         {room.room_kind && room.room_kind !== 'guest' && <details className="border border-accent p-3 my-3"><summary>Report a participant</summary><p className="text-sm text-muted">Reports store a reason and account references for 7 days. No message bodies or attachments are retained.</p><form className="flex flex-wrap gap-2 mt-3" onSubmit={event => {event.preventDefault();const data=new FormData(event.currentTarget);void accountApi.post(`/registered/rooms/${room.code}/report`,{senderId:data.get('senderId'),reason:data.get('reason')}).then(()=>setConsentStatus('Report submitted. No conversation evidence was stored.')).catch(error=>setConsentStatus(accountError(error)));}}><label>Participant<select required name="senderId" className="block bg-panel border border-accent p-2"><option value="">Choose participant</option>{participants.filter(p=>p.sender_id!==senderId).map(p=><option key={p.sender_id} value={p.sender_id}>{p.sender_name}</option>)}</select></label><label>Reason<select name="reason" className="block bg-panel border border-accent p-2"><option value="spam">Spam</option><option value="harassment">Harassment</option><option value="unsafe_content">Unsafe content</option><option value="other">Other</option></select></label><Button type="submit">Submit report</Button></form><p role="status">{room.room_kind!=='match'&&consentStatus}</p></details>}
         {['group','public'].includes(room.room_kind ?? '') && <GroupTools code={room.code} selfSenderId={senderId} role={room.self_role ?? 'member'} participants={participants} socket={socket} />}
         {room.room_kind === 'match' && <section className="border border-accent p-3 my-3" aria-label="Anonymous connection choices">
@@ -1069,7 +1103,7 @@ export default function ChatPage() {
           <Button onClick={() => { void accountApi.post(`/registered/rooms/${room.code}/terminate`).then(() => nav('/match')).catch(error => setConsentStatus(accountError(error))); }}>Skip &amp; search again</Button></div>
           <p role="status" className="text-sm mt-2">{consentStatus}</p>
         </section>}
-        {messages.map((m, i) => <article data-message-id={m.id} data-grouped={i > 0 && !m.deleted && !messages[i-1].deleted && messages[i-1].sender_id === m.sender_id && Math.abs(Date.parse(m.created_at ?? '') - Date.parse(messages[i-1].created_at ?? '')) < 300000} key={m.id ?? i} className={`chat-message ${m.sender_id === senderId ? 'chat-message--self' : ''} ${m.deleted ? 'chat-message--deleted' : ''} group relative max-w-[94%] border-2 p-2.5 text-sm shadow-panel sm:max-w-[82%] lg:max-w-[70%] ${m.deleted ? 'mx-auto border-punch/70 bg-panel text-muted' : m.sender_id === senderId ? 'ml-auto border-cyan bg-cyan/10' : 'border-accent bg-accent/10'}`}>
+        {messages.map((m, i) => <SwipeableMessage key={m.id ?? i} enabled={isJoined && !!m.id && !m.deleted} onReply={()=>startReply(m)}><article data-message-date={m.created_at} data-message-id={m.id} data-grouped={i > 0 && !m.deleted && !messages[i-1].deleted && messages[i-1].sender_id === m.sender_id && Math.abs(Date.parse(m.created_at ?? '') - Date.parse(messages[i-1].created_at ?? '')) < 300000} key={m.id ?? i} className={`chat-message ${m.sender_id === senderId ? 'chat-message--self' : ''} ${m.deleted ? 'chat-message--deleted' : ''} group relative max-w-[94%] border-2 p-2.5 text-sm shadow-panel sm:max-w-[82%] lg:max-w-[70%] ${m.deleted ? 'mx-auto border-punch/70 bg-panel text-muted' : m.sender_id === senderId ? 'ml-auto border-cyan bg-cyan/10' : 'border-accent bg-accent/10'}`}>
           <div className="message-row-head mb-1">
             <p className="message-sender-label text-[10px] uppercase tracking-wider text-muted">{m.deleted ? 'Message removed' : m.sender_id === senderId ? 'You' : (m.sender_name ?? 'Member')}</p>
             {!m.deleted && m.id && (
@@ -1084,7 +1118,7 @@ export default function ChatPage() {
                   {messageMenuId === m.id ? <X className="h-3.5 w-3.5" /> : <MoreVertical className="h-3.5 w-3.5" />}
                 </button>
                 {messageMenuId === m.id && (
-                  <div className={`message-options-menu ${m.sender_id === senderId ? 'right-0' : 'left-0'}`}>
+                  <ResponsiveActions close={()=>setMessageMenuId(null)} className={`message-options-menu ${m.sender_id === senderId ? 'right-0' : 'left-0'}`}>
                     {isJoined && (
                       <button type="button" onClick={() => startReply(m)}>
                         <Reply className="h-3.5 w-3.5" />
@@ -1133,7 +1167,7 @@ export default function ChatPage() {
                         <span>{deletingMessageIds[m.id] ? 'Deleting' : 'Delete'}</span>
                       </button>
                     )}
-                  </div>
+                  </ResponsiveActions>
                 )}
               </div>
             )}
@@ -1215,13 +1249,13 @@ export default function ChatPage() {
             </div>
           )}
           {m.created_at && <time className="message-time" dateTime={m.created_at}>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</time>}
-        </article>)}
+        </article></SwipeableMessage>)}
         </div>
-      </section>
+      </section></div>
 
       <div className="chat-activity" aria-label="Chat activity">
         <div className={`typing-region ${typingNames.length ? 'is-visible' : ''}`} aria-live="polite">{typingNames.length > 0 && <LoadingSignal label={typingLabel} />}</div>
-        <Button className={`new-message-indicator ${transcript.unread > 0 ? 'is-visible' : ''}`} aria-hidden={transcript.unread === 0} disabled={transcript.unread === 0} tabIndex={transcript.unread > 0 ? 0 : -1} aria-label={`Scroll to ${transcript.unread} new ${transcript.unread === 1 ? 'message' : 'messages'}`} onClick={transcript.newest}>↓ {transcript.unread === 1 ? 'New message' : `${transcript.unread} new messages`}</Button>
+
         <span className="sr-only" role="status">{transcript.unread ? `${transcript.unread} new messages` : ''}</span>
       </div>
 
@@ -1282,6 +1316,7 @@ export default function ChatPage() {
             }
           }}
         />
+        {attachment && <AttachmentPreview attachment={attachment} remove={()=>setAttachment(null)} send={()=>void sendAttachment()} disabled={!isJoined || !connected || recordingVoice}/> }
         {recordingVoice && (
           <div className="voice-recording-strip">
             <div className="flex min-w-0 items-center gap-2">
@@ -1305,10 +1340,12 @@ export default function ChatPage() {
             <Flame className="h-4 w-4" />
             <span className="composer-label">{burnAfterReadMode ? 'Burn on' : 'Burn off'}</span>
           </button>
+          <button type="button" className="composer-action-button mobile-attachment-action" aria-label="Choose attachment" disabled={!isJoined || recordingVoice || uploadingImage || uploadingFile} onClick={()=>setAttachmentSheet(true)}><Paperclip className="h-4 w-4"/></button>
           <label className={`composer-action-button composer-action-button--image ${uploadingImage || !isJoined || recordingVoice ? 'composer-control-disabled' : ''} ${uploadingImage ? 'cursor-wait opacity-70' : isJoined && !recordingVoice ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
             <ImagePlus className="h-4 w-4" />
             <span className="composer-label">{uploadingImage ? 'Uploading' : 'Image'}</span>
             <input
+              id="chat-image-input"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
@@ -1316,7 +1353,7 @@ export default function ChatPage() {
               disabled={uploadingImage || !isJoined || recordingVoice}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) sendImage(file).catch(() => undefined);
+                if (file) selectAttachment(file,'image');
                 e.currentTarget.value = '';
               }}
             />
@@ -1325,6 +1362,7 @@ export default function ChatPage() {
             <Paperclip className="h-4 w-4" />
             <span className="composer-label">{uploadingFile ? 'Uploading' : 'File'}</span>
             <input
+              id="chat-file-input"
               type="file"
               accept=".pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,text/plain,text/csv,application/zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
               className="sr-only"
@@ -1332,7 +1370,7 @@ export default function ChatPage() {
               disabled={uploadingFile || !isJoined || recordingVoice}
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) sendFile(file).catch(() => undefined);
+                if (file) selectAttachment(file,'file');
                 e.currentTarget.value = '';
               }}
             />

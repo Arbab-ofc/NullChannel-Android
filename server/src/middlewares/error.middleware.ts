@@ -3,7 +3,7 @@ import multer from 'multer';
 import { logger } from '../utils/logger.js';
 export const errorMiddleware = (err: Error & { status?: number; code?: string }, _req: Request, res: Response, _next: NextFunction) => {
   const known: Record<string,{status:number,message:string}> = {
-    MATCH_DISABLED:{status:403,message:'Enable matchmaking in privacy settings first.'}, PRESENCE_REQUIRED:{status:409,message:'Connect and set your presence online before searching.'},
+    AUTH_UNAVAILABLE:{status:503,message:'Account verification is temporarily unavailable. Please retry.'}, INVITATION_PENDING:{status:409,message:'Invitation already pending'}, ACTIVE_DIRECT_ROOM:{status:409,message:'A temporary conversation is already active.'}, INVITATION_COOLDOWN:{status:409,message:'Please wait before inviting this friend again.'}, MATCH_DISABLED:{status:403,message:'Enable matchmaking in privacy settings first.'}, PRESENCE_REQUIRED:{status:409,message:'Connect and set your presence online before searching.'},
     ROOM_BANNED:{status:403,message:'You cannot rejoin this channel.'}, POLL_CLOSED:{status:409,message:'This poll has closed.'}, POLL_LIMIT:{status:429,message:'This channel has reached its poll limit.'},
     ROOM_LIMIT_REACHED:{status:429,message:'You have reached the active room limit.'}, FRIENDSHIP_REQUIRED:{status:403,message:'A friendship is required for this invitation.'},
     USER_UNAVAILABLE:{status:409,message:'This participant is unavailable.'}, INVITATION_LIMIT:{status:429,message:'Too many active invitations. Please wait.'},

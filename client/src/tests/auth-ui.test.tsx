@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../hooks/useTheme';
 import AuthPage from '../pages/AuthPage';
 const {post} = vi.hoisted(()=>({post:vi.fn()}));
-vi.mock('../hooks/useAccount',()=>({useAccount:()=>({refresh:vi.fn()})}));
+vi.mock('../hooks/useAccount',()=>({useOptionalAccount:()=>({profile:null}),useAccount:()=>({refresh:vi.fn()})}));
 vi.mock('../lib/account',()=>({accountApi:{post},accountError:()=> 'Request failed.'}));
 let root:Root;let container:HTMLDivElement;
 beforeEach(()=>{vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.clearAllMocks();container=document.createElement('div');document.body.append(container);root=createRoot(container);});

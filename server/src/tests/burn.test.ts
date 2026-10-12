@@ -1,3 +1,4 @@
+vi.mock('../services/presence.service.js',()=>({emitAccountEvent:vi.fn()}));
 import { beforeEach, expect, it, vi } from 'vitest';
 const { rpc, burned } = vi.hoisted(() => ({ rpc: vi.fn(),burned: vi.fn() }));
 vi.mock('../config/supabase.js',() => ({ supabase: { rpc } }));

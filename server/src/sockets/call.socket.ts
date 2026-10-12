@@ -15,6 +15,7 @@ export type CallSession = {
   createdAt: number; acceptedAt?: number; recovering: boolean; revision: number; answered: boolean;
   candidates: Map<string, number>; connected: Set<string>; timer: ReturnType<typeof setTimeout>;
   expiryTimer: ReturnType<typeof setTimeout>;
+  detached?:Set<string>;
 };
 class CallFailure extends Error { constructor(public code: string, message: string) { super(message); } }
 export class CallRegistry {
@@ -98,7 +99,7 @@ export class CallRegistry {
     const call = this.calls.get(callId);
     if (!call || ![call.caller.identity,call.callee.identity].includes(socket.data.identity)) throw new CallFailure('INVALID_CALL','This call is unavailable.');
     const role = call.caller.identity === socket.data.identity ? 'caller' : 'callee';
-    if (call[role].socketId && call[role].socketId !== socket.id) throw new CallFailure('OTHER_TAB','This call belongs to another tab.');
+    if(call[role].socketId&&call[role].socketId!==socket.id){if(!call.detached?.has(call[role].identity))throw new CallFailure('OTHER_TAB','This call belongs to another tab.');call[role].socketId=socket.id;call.detached.delete(call[role].identity);}
     try {
       const { members } = await this.eligible(socket,call.roomCode);
       if (!members.some(m => m.sender_id === call.caller.identity) || !members.some(m => m.sender_id === call.callee.identity)) throw new Error('Membership changed');
@@ -106,7 +107,7 @@ export class CallRegistry {
     const otherId = role === 'caller' ? call.callee.socketId : call.caller.socketId;
     if (otherId) {
       const other = this.io.sockets.sockets.get(otherId);
-      if (!other || !await socketSessionValid(other)) { this.end(callId,'session-ended'); throw new CallFailure('SESSION_EXPIRED','The peer session ended.'); }
+      if (other&&!await socketSessionValid(other)) { this.end(callId,'session-ended'); throw new CallFailure('SESSION_EXPIRED','The peer session ended.'); }
     }
     if (!this.calls.has(callId)) throw new CallFailure('INVALID_CALL','This call has ended.');
     return { call, role };
@@ -115,6 +116,7 @@ export class CallRegistry {
     // Repeating termination after cleanup is safe and leaks no call metadata.
     if (event === 'call:end' && !this.calls.has(data.callId)) return { ok: true };
     const { call, role } = await this.authorize(socket,data.callId);
+    if(event==='call:resume')return {ok:true,callId:call.callId};
     if (event === 'call:end') { this.end(call.callId,'hangup'); return { ok: true }; }
     if (event === 'call:accept' || event === 'call:reject') {
       if (role !== 'callee' || call.status !== 'ringing') throw new CallFailure('INVALID_STATE','This invitation has already been handled.');
@@ -126,7 +128,7 @@ export class CallRegistry {
     }
     if (call.status === 'ringing') throw new CallFailure('INVALID_STATE','Accept the call before negotiating.');
     const target = role === 'caller' ? call.callee.socketId : call.caller.socketId;
-    if (!this.io.sockets.sockets.get(target)?.connected || !this.io.sockets.sockets.get(target)?.rooms.has(call.roomId)) { this.end(call.callId,'peer-disconnected'); throw new CallFailure('DISCONNECTED','The other participant disconnected.'); }
+    if ((!this.io.sockets.sockets.get(target)?.connected || !this.io.sockets.sockets.get(target)?.rooms.has(call.roomId))&&!['call:connected','call:reconnecting'].includes(event)) { throw new CallFailure('DISCONNECTED','The other participant is reconnecting.'); }
     if (event === 'call:offer') {
       if (role !== 'caller' || data.revision !== call.revision+1 || (call.revision > 0 && !call.answered)) throw new CallFailure('INVALID_STATE','Offer is out of sequence.');
       call.revision = data.revision; call.answered = false;
@@ -141,7 +143,7 @@ export class CallRegistry {
     } else if (event === 'call:connected') {
       if (!call.answered) throw new CallFailure('INVALID_STATE','Negotiation is incomplete.');
       call.connected.add(socket.data.identity);
-      if (call.connected.size === 2) { call.status = 'connected'; call.recovering = false; clearTimeout(call.timer); this.emit(call,'call:connected'); }
+      if (call.connected.size === 2 && !call.detached?.size) { call.status = 'connected'; call.recovering = false; clearTimeout(call.timer); this.emit(call,'call:connected'); }
       return { ok: true };
     } else if (event === 'call:reconnecting') {
       if (call.recovering) return { ok: true };
@@ -152,9 +154,12 @@ export class CallRegistry {
     this.io.to(target).emit(event,data); return { ok: true };
   }
   disconnected(socket: Socket) {
-    for (const call of this.calls.values()) {
-      if (call.caller.socketId === socket.id || call.callee.socketId === socket.id) this.end(call.callId,'peer-disconnected');
-      else if (call.status === 'ringing' && call.callee.identity === socket.data.identity && ![...this.io.sockets.sockets.values()].some(s => s.id !== socket.id && s.data.identity === call.callee.identity && s.rooms.has(call.roomId))) this.end(call.callId,'peer-disconnected');
+    for(const call of this.calls.values()){
+      if(call.caller.socketId===socket.id||call.callee.socketId===socket.id){
+        if(call.status==='ringing'){this.end(call.callId,'peer-disconnected');continue;}
+        call.detached??=new Set();call.detached.add(socket.data.identity);
+        this.timeout(call,env.CALL_DISCONNECT_GRACE_MS,'peer-disconnected');
+      }else if(call.status==='ringing'&&call.callee.identity===socket.data.identity&&![...this.io.sockets.sockets.values()].some(s=>s.id!==socket.id&&s.data.identity===call.callee.identity&&s.rooms.has(call.roomId)))this.end(call.callId,'peer-disconnected');
     }
   }
   dispose() { for (const id of this.calls.keys()) this.end(id,'server-stopped'); }
@@ -166,7 +171,7 @@ export const getCallRegistry = (io: Server) => {
 export const registerCallSocket = (io: Server, socket: Socket) => {
   const registry = getCallRegistry(io);
   const schemas: Record<string, z.ZodType> = { 'call:invite': callInviteSchema, 'call:accept': callRefSchema, 'call:reject': callRefSchema,
-    'call:end': callRefSchema, 'call:offer': callDescriptionSchema, 'call:answer': callDescriptionSchema,
+    'call:resume':callRefSchema,'call:end': callRefSchema, 'call:offer': callDescriptionSchema, 'call:answer': callDescriptionSchema,
     'call:ice-candidate': callIceSchema, 'call:connected': callRefSchema, 'call:reconnecting': callRefSchema };
   for (const [event,schema] of Object.entries(schemas)) socket.on(event,(payload: unknown, ack?: (result: CallAck) => void) => {
     const respond = (result: CallAck) => { if (typeof ack === 'function') ack(result); if (!result.ok) socket.emit(result.code === 'BUSY' ? 'call:busy' : 'call:error',result); };

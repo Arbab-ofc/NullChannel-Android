@@ -22,7 +22,7 @@ export const clearAccountCookies = (res:Response) => {
 };
 export const verifyAccountCookie = async (header:string|undefined,allowDeleting=false) => {
  const token=cookieValue(header,accountCookie()); if(!token) return null;
- const {data,error}=await supabase.auth.getUser(token);if(error||!data.user)return null;
+ const {data,error}=await supabase.auth.getUser(token);if(error){if(error.status===400||error.status===401||error.status===403)return null;throw new Error('AUTH_UNAVAILABLE');}if(!data.user)return null;
  const profile=await supabase.from('profiles').select('deletion_pending').eq('id',data.user.id).maybeSingle();if(profile.error)throw profile.error;
  if(!profile.data||profile.data.deletion_pending&&!allowDeleting)return null;return data.user;
 };
@@ -37,3 +37,11 @@ export const normalizedUsername = (value:string) => value.toLowerCase();
 export const reservedUsernames = new Set(['admin','administrator','nullchannel','support','system','moderator','api','root']);
 export const validUsername = (value:string) => /^[A-Za-z0-9_]{3,24}$/.test(value) && !reservedUsernames.has(normalizedUsername(value));
 export const validPassword = (value:string) => value.length>=12 && value.length<=128;
+
+const refreshingAccounts=new Map<string,ReturnType<ReturnType<typeof accountAuthClient>['auth']['refreshSession']>>();
+/** Coalesces token rotation within this process; never logs or persists the key. */
+export function refreshAccountSession(token:string){
+ let pending=refreshingAccounts.get(token);
+ if(!pending){pending=accountAuthClient().auth.refreshSession({refresh_token:token}).finally(()=>refreshingAccounts.delete(token));refreshingAccounts.set(token,pending);}
+ return pending;
+}

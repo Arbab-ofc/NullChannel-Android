@@ -98,6 +98,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -198,6 +201,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -291,6 +297,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -361,6 +370,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -431,6 +443,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -520,6 +535,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -621,6 +639,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -695,6 +716,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -799,6 +823,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -950,6 +977,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -1047,6 +1077,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -1139,6 +1172,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -1231,6 +1267,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -1315,6 +1354,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -1389,6 +1431,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -1473,6 +1518,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -1555,6 +1603,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -1685,6 +1736,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -1798,6 +1852,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -1882,6 +1939,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -2001,6 +2061,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -2101,6 +2164,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -2213,6 +2279,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2283,6 +2352,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2353,6 +2425,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2427,6 +2502,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2501,6 +2579,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2575,6 +2656,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2668,6 +2752,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2752,6 +2839,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -2847,6 +2937,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -2921,6 +3014,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -3028,6 +3124,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -3102,6 +3201,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -3174,6 +3276,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -3269,6 +3374,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -3366,6 +3474,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -3440,6 +3551,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -3524,6 +3638,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -3636,6 +3753,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -3710,6 +3830,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -3851,6 +3974,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -3954,6 +4080,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4038,6 +4167,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4122,6 +4254,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4196,6 +4331,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -4268,6 +4406,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -4292,6 +4433,93 @@
                 "code": "example"
               }
             }
+          }
+        }
+      }
+    },
+    "/api/registered/invitations/eligibility/{username}": {
+      "get": {
+        "operationId": "get__registered_invitations_eligibility__username",
+        "tags": [
+          "registered"
+        ],
+        "summary": "GET /registered/invitations/eligibility/:username",
+        "description": "Implemented in server/src/routes/registered-room.routes.ts. Requires a verified registered-account cookie. Mutations require the configured Origin header. Room resources are temporary; expired access is rejected.",
+        "security": [
+          {
+            "accountCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Resource identifier."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation (JSON envelope).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data",
+                    "error"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "error": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
+          },
+          "401": {
+            "description": "Missing or expired authentication."
+          },
+          "403": {
+            "description": "Permission denied or Origin rejected."
+          },
+          "404": {
+            "description": "Resource missing or expired."
+          },
+          "409": {
+            "description": "State conflict."
+          },
+          "429": {
+            "description": "Rate limit exceeded; retry later."
+          },
+          "500": {
+            "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4385,6 +4613,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4459,6 +4690,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -4585,6 +4819,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4669,6 +4906,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4753,6 +4993,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -4868,6 +5111,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -4961,6 +5207,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -5071,6 +5320,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -5183,6 +5435,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -5295,6 +5550,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5379,6 +5637,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -5483,6 +5744,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5567,6 +5831,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5651,6 +5918,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5735,6 +6005,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5805,6 +6078,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -5873,6 +6149,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -5947,6 +6226,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -6021,6 +6303,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -6093,6 +6378,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         },
         "requestBody": {
@@ -6193,6 +6481,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -6286,6 +6577,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -6360,6 +6654,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -6444,6 +6741,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }
@@ -6528,6 +6828,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       },
@@ -6610,6 +6913,9 @@
           },
           "500": {
             "description": "Sanitized internal error."
+          },
+          "503": {
+            "description": "Account verification temporarily unavailable; credentials are retained."
           }
         }
       }

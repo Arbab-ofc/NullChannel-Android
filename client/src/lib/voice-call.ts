@@ -2,7 +2,7 @@ import type { Socket } from 'socket.io-client';
 import { AudioPeer, CALL_DEFAULTS, microphoneError, NETWORK_FAILURE } from './webrtc';
 
 export type CallPhase = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'reconnecting' | 'ended' | 'failed';
-export type CallView = { phase: CallPhase; callId: string | null; peerName: string; roomName: string; muted: boolean; playbackBlocked: boolean; connectedAt: number | null; message: string; accepting: boolean };
+export type CallView = { visibleRoom?:boolean;phase: CallPhase; callId: string | null; peerName: string; roomName: string; muted: boolean; playbackBlocked: boolean; connectedAt: number | null; message: string; accepting: boolean };
 export const callTransitions: Record<CallPhase, readonly CallPhase[]> = {
   idle: ['outgoing','incoming'], outgoing: ['connecting','ended','failed'], incoming: ['connecting','ended','failed'],
   connecting: ['connected','ended','failed'], connected: ['reconnecting','ended','failed'],
@@ -20,10 +20,13 @@ export class VoiceCall {
   private disposed = false;
   private handlers = new Map<string, (...args: unknown[]) => void>();
   private expiry: ReturnType<typeof setTimeout> | null = null;
+  private pendingSignals:Array<{event:string;data:object}>=[];
+  private signalingDeadline:ReturnType<typeof setTimeout>|null=null;
   private generation = 0;
   private timeouts = CALL_DEFAULTS;
   constructor(private socket: Socket, readonly roomCode: string,
     private peerFactory: (caller: boolean, callbacks: ConstructorParameters<typeof AudioPeer>[1], timeouts: typeof CALL_DEFAULTS) => AudioPeer = (caller,callbacks,timeouts) => new AudioPeer(caller,callbacks,undefined,timeouts)) {}
+  get signalingSocket(){return this.socket;}
   snapshot = () => this.view;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(patch: Partial<CallView>) { if (this.disposed) return; this.view = { ...this.view,...patch }; for (const listener of this.listeners) listener(); }
@@ -32,13 +35,14 @@ export class VoiceCall {
     if (!callTransitions[this.view.phase].includes(phase)) return;
     this.update({ ...patch,phase });
   }
-  private reset() { if (['ended','failed'].includes(this.view.phase)) { this.transition('idle'); this.update(empty()); } }
+  private reset() { if (['ended','failed'].includes(this.view.phase)) { this.transition('idle'); this.update({...empty(),visibleRoom:this.view.visibleRoom}); } }
+  private signal(event:string,data:object){if(!this.socket.connected&&['connected','reconnecting'].includes(this.view.phase)){if(this.pendingSignals.length>=64)return Promise.reject(new Error('Voice signaling backlog exceeded.'));this.pendingSignals.push({event,data});return Promise.resolve();}return this.request(event,data).then(()=>undefined);}
   private request(event: string, data: object) {
     return new Promise<Ack>((resolve,reject) => {
       if (!this.socket.connected) return reject(new Error('Voice signaling disconnected. Please reconnect and call again.'));
       this.socket.timeout(8000).emit(event,data,(error: Error | null, result: Ack) => {
         if (error || !result) reject(new Error('Voice signaling timed out. Please call again.'));
-        else if (!result.ok) reject(new Error(result.message ?? 'Calling is unavailable.'));
+        else if (!result.ok) {if(result.code==='INVALID_CALL'&&this.view.callId)this.finish('ended','Call ended.');reject(new Error(result.message ?? 'Calling is unavailable.'));}
         else resolve(result);
       });
     });
@@ -79,10 +83,26 @@ export class VoiceCall {
       const messages: Record<string,string> = { 'no-answer': this.caller ? 'No Answer' : 'Missed Call', declined: 'Call declined', 'connection-timeout': NETWORK_FAILURE, 'network-failed': NETWORK_FAILURE, 'peer-disconnected': 'The other participant disconnected.', 'answered-elsewhere': 'Call answered in another tab.', 'room-expired': 'The room expired.', 'membership-lost': 'Room membership ended.' };
       this.finish(payload.reason.includes('timeout') || payload.reason === 'network-failed' ? 'failed' : 'ended',messages[payload.reason] ?? 'Call ended.');
     });
-    on('disconnect',() => this.finish('ended','Connection lost. Reconnect and start a new call.'));
+    on<string>('disconnect',reason=>{
+      if(['connected','reconnecting'].includes(this.view.phase)&&reason!=='io client disconnect'){
+        this.transition('reconnecting',{message:'Reconnecting call...'});
+        if(this.signalingDeadline)clearTimeout(this.signalingDeadline);
+        this.signalingDeadline=setTimeout(()=>this.fail('Voice signaling could not reconnect.'),this.timeouts.disconnectMs);
+      }else this.finish('ended','Connection lost. Reconnect and start a new call.');
+    });
+    on<{code:string}>('room-joined',room=>{
+      if(room.code!==this.roomCode||this.view.phase!=='reconnecting'||!this.view.callId)return;
+      const id=this.view.callId,generation=this.generation;const current=()=>this.view.callId===id&&this.generation===generation&&!this.disposed;
+      void this.request('call:resume',{callId:id}).then(async()=>{
+        if(!current())return;for(const item of this.pendingSignals.splice(0)){if(!current())return;await this.request(item.event,item.data);}
+        if(!current())return;if(this.signalingDeadline)clearTimeout(this.signalingDeadline);this.signalingDeadline=null;
+        if(this.engine?.connected){await this.request('call:connected',{callId:id});if(current())this.transition('connected');}else this.engine?.recover();
+      }).catch(()=>{if(current())this.fail('Voice signaling could not reconnect.');});
+    });
     on('room-expired',() => this.finish('ended','The room closed.'));
     on<{ code: string }>('membership-revoked',payload => { if (payload.code === this.roomCode) this.finish('ended','Room membership ended.'); });
   }
+  setVisible(visibleRoom:boolean){if(this.view.visibleRoom!==visibleRoom)this.update({visibleRoom});}
   setRoom(eligible: boolean, expiresAt?: string) {
     if (this.expiry) clearTimeout(this.expiry); this.expiry = null;
     if (!eligible) { this.end(); return; }
@@ -121,12 +141,12 @@ export class VoiceCall {
     const id = this.view.callId; const generation = this.generation;
     const current = () => !this.disposed && this.view.callId === id && this.generation === generation;
     return this.peerFactory(this.caller,{
-      description: async (kind,revision,sdp) => { if (current()) await this.request(`call:${kind}`,{ callId: id,revision,sdp }); },
-      candidate: async (revision,candidate) => { if (current()) await this.request('call:ice-candidate',{ callId: id,revision,candidate }); },
+      description: async (kind,revision,sdp) => { if (current()) await this.signal(`call:${kind}`,{ callId: id,revision,sdp }); },
+      candidate: async (revision,candidate) => { if (current()) await this.signal('call:ice-candidate',{ callId: id,revision,candidate }); },
       state: phase => {
         if (!current()) return;
         this.transition(phase,{ connectedAt: phase === 'connected' ? this.view.connectedAt ?? Date.now() : this.view.connectedAt });
-        void this.request(`call:${phase}`,{ callId: id }).catch(() => { if (current()) this.fail('Voice signaling was interrupted. Please call again.'); });
+        if(this.socket.connected)void this.request(`call:${phase}`,{ callId: id }).catch(() => { if (current()&&this.socket.connected) this.fail('Voice signaling was interrupted. Please call again.'); });
       }, error: message => { if (current()) this.fail(message); }, playback: blocked => { if (current()) this.update({ playbackBlocked: blocked }); }
     },this.timeouts);
   }
@@ -138,6 +158,7 @@ export class VoiceCall {
   mute() { if (!['connected','reconnecting','connecting'].includes(this.view.phase)) return; const muted = !this.view.muted; this.engine?.mute(muted); this.update({ muted }); }
   play() { void this.engine?.play(); }
   private finish(phase: 'ended' | 'failed',message: string) {
+    if(this.signalingDeadline)clearTimeout(this.signalingDeadline);this.signalingDeadline=null;this.pendingSignals=[];
     this.generation += 1; this.engine?.close(); this.engine = null;
     if (callIsActive(this.view.phase)) this.transition(phase,{ message,accepting: false,muted: false,playbackBlocked: false });
   }

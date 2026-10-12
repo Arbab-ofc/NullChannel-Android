@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { Socket } from 'socket.io-client';
-import { VoiceCall } from '../lib/voice-call';
-export const useVoiceCall = (socket: Socket, code: string, eligible: boolean, expiresAt?: string) => {
-  const call = useMemo(() => new VoiceCall(socket,code),[socket,code]);
+import {roomVoiceCall,releaseRoomCall,retainRoomCall} from '../lib/active-calls';
+export const useVoiceCall = (socket: Socket, code: string, eligible: boolean, expiresAt?: string,ready=true) => {
+  const call = useMemo(() => roomVoiceCall(socket,code),[socket,code]);
   const view = useSyncExternalStore(call.subscribe,call.snapshot,call.snapshot);
   useEffect(() => {
-    call.attach(); const hide = () => call.end(); window.addEventListener('pagehide',hide);
-    return () => { window.removeEventListener('pagehide',hide); call.dispose(); };
+    retainRoomCall(call);call.attach(); const hide = () => call.end(); window.addEventListener('pagehide',hide);
+    return () => { window.removeEventListener('pagehide',hide);call.setVisible(false); releaseRoomCall(call); };
   },[call]);
-  useEffect(() => { call.setRoom(eligible,expiresAt); },[call,eligible,expiresAt]);
+  useEffect(() => { call.setVisible(ready);if(ready&&(eligible||expiresAt))call.setRoom(eligible,expiresAt); },[call,eligible,expiresAt,ready]);
   return { call,view };
 };

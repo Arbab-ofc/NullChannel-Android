@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { AccountLayout, accountLinks } from '../components/account/AccountLayout';
 import { ThemeProvider } from '../hooks/useTheme';
-vi.mock('../hooks/useAccount',()=>({useAccount:()=>({profile:{username:'fixture',display_name:'Fixture'},loading:false,logout:vi.fn()})}));
+vi.mock('../hooks/useAccount',()=>({useOptionalAccount:()=>({profile:null}),useAccount:()=>({profile:{username:'fixture',display_name:'Fixture'},loading:false,logout:vi.fn()})}));
 vi.mock('../components/account/NotificationBell',()=>({NotificationBell:()=> <a href="/notifications">Notifications</a>}));
 let root:Root,host:HTMLDivElement;
 beforeEach(()=>{vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('matchMedia',()=>({matches:true}));vi.stubGlobal('scrollTo',vi.fn());Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:function(this:HTMLDialogElement){this.open=true;}});Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:function(this:HTMLDialogElement){this.open=false;}});host=document.createElement('div');document.body.append(host);root=createRoot(host);});

@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { supabase } from '../config/supabase.js';
 import { env } from '../config/env.js';
 import { requireAccount } from '../middlewares/account.middleware.js';
-import { accountAuthClient, accountCookie, accountRefreshCookie, clearAccountCookies, cookieValue, profileFor, setAccountCookies, validPassword, validUsername } from '../services/account.service.js';
+import { accountAuthClient, accountCookie, accountRefreshCookie, clearAccountCookies, refreshAccountSession, cookieValue, profileFor, setAccountCookies, validPassword, validUsername } from '../services/account.service.js';
 import { errorResponse, successResponse } from '../utils/apiResponse.js';
 import { deleteAccountRooms } from '../services/registered-room.service.js';
 import { disconnectAccount,refreshPresencePrivacy } from '../services/presence.service.js';
@@ -43,7 +43,7 @@ router.post('/account/login',loginLimit,async(req,res,next)=>{try{
  }catch(error){next(error);}});
 router.post('/account/refresh',refreshLimit,async(req,res,next)=>{try{
  const token=cookieValue(req.headers.cookie,accountRefreshCookie());if(!token){res.status(401).json(errorResponse('ACCOUNT_REQUIRED','Sign in again.'));return;}
- const {data,error}=await accountAuthClient().auth.refreshSession({refresh_token:token});if(error||!data.session){clearAccountCookies(res);res.status(401).json(errorResponse('SESSION_EXPIRED','Sign in again.'));return;}
+ const {data,error}=await refreshAccountSession(token);if(error&&![400,401,403].includes(error.status??0))throw new Error('AUTH_UNAVAILABLE');if(error||!data.session){clearAccountCookies(res);res.status(401).json(errorResponse('SESSION_EXPIRED','Sign in again.'));return;}
  setAccountCookies(res,data.session);res.json(successResponse({profile:data.user?await profileFor(data.user.id):null}));
  }catch(error){next(error);}});
 router.post('/account/logout',async(req,res,next)=>{try{

@@ -2,32 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: 240 36% 5%;
-  --panel: 240 34% 11%;
-  --text: 250 100% 98%;
-  --muted: 229 15% 70%;
-  --accent: 258 90% 67%;
-  --cyan: 186 81% 58%;
-  --punch: 50 100% 67%;
-  --shadow-offset: 232 33% 25%;
-  --panel-border: 232 31% 34%;
-  color: hsl(var(--text));
-  background: hsl(var(--bg));
-}
-
-:root.light {
-  --bg: 60 33% 97%;
-  --panel: 0 0% 100%;
-  --text: 240 10% 8%;
-  --muted: 240 6% 32%;
-  --accent: 345 84% 43%;
-  --cyan: 210 90% 42%;
-  --punch: 46 100% 46%;
-  --shadow-offset: 240 10% 8%;
-  --panel-border: 240 10% 8%;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -49,7 +23,6 @@ body {
 
 .neo-panel {
   border: 2px solid hsl(var(--panel-border));
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
   background: hsl(var(--panel));
 }
 
@@ -58,27 +31,22 @@ body {
 }
 
 .neo-action:hover {
-  box-shadow: 5px 5px 0 hsl(var(--shadow-offset));
   filter: brightness(1.04);
 }
 
 .neo-action:active {
-  box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
   filter: brightness(0.98);
 }
 
 .retro-upload-button {
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, filter 140ms ease;
 }
 
 .retro-upload-button:hover {
-  box-shadow: 5px 5px 0 hsl(var(--shadow-offset));
   transform: translate(-1px, -1px);
 }
 
 .retro-upload-button:active {
-  box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   transform: translate(1px, 1px);
 }
 
@@ -196,7 +164,6 @@ body {
 
 .copy-toast {
   border: 2px solid hsl(var(--cyan));
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
   background: hsl(var(--panel));
   color: hsl(var(--text));
   padding: 0.7rem 1rem;
@@ -212,7 +179,6 @@ body {
   gap: 0.5rem;
   border: 2px solid hsl(var(--cyan));
   background: hsl(var(--panel));
-  box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   color: hsl(var(--text));
   padding: 0 0.85rem;
   font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
@@ -284,7 +250,6 @@ body {
   border: 1px solid hsl(var(--panel-border) / 0.85);
   border-radius: 8px;
   background: hsl(var(--panel) / 0.98);
-  box-shadow: 0 16px 36px hsl(var(--bg) / 0.42), 0 0 0 1px hsl(var(--text) / 0.04);
   padding: 0.3rem;
 }
 
@@ -296,7 +261,6 @@ body {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  box-shadow: none;
   color: hsl(var(--text));
   padding: 0.55rem 0.6rem;
   font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
@@ -385,7 +349,6 @@ body {
   justify-content: center;
   border: 1px solid hsl(var(--punch) / 0.65);
   background: hsl(var(--panel));
-  box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   color: hsl(var(--punch));
   padding: 0;
   opacity: 0.78;
@@ -394,7 +357,6 @@ body {
 
 .message-delete-button:hover,
 .message-delete-button:active {
-  box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   filter: none;
   opacity: 0.78;
   transform: none;
@@ -458,7 +420,6 @@ body {
   justify-content: center;
   border: 1px solid hsl(var(--panel-border) / 0.5);
   background: hsl(var(--bg) / 0.72);
-  box-shadow: none;
   font-size: 1.05rem;
   line-height: 1;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
@@ -493,7 +454,6 @@ body {
   gap: 0.32rem;
   border: 1px solid hsl(var(--panel-border) / 0.65);
   background: hsl(var(--bg) / 0.45);
-  box-shadow: none;
   color: hsl(var(--text));
   padding: 0 0.5rem;
   font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
@@ -570,7 +530,6 @@ body {
   justify-content: center;
   border: 1px solid hsl(var(--panel-border));
   background: hsl(var(--bg) / 0.5);
-  box-shadow: none;
   color: hsl(var(--muted));
 }
 
@@ -650,7 +609,6 @@ body {
   gap: 0.65rem;
   border: 2px solid hsl(var(--cyan) / 0.58);
   background: hsl(var(--panel));
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
   padding: 0.55rem;
 }
 
@@ -695,7 +653,6 @@ body {
   justify-content: center;
   border: 1px solid hsl(var(--panel-border) / 0.7);
   background: hsl(var(--bg) / 0.6);
-  box-shadow: none;
   color: hsl(var(--muted));
 }
 
@@ -752,7 +709,6 @@ body {
   gap: 0.5rem;
   border: 2px solid hsl(var(--panel-border));
   background: hsl(var(--bg));
-  box-shadow: var(--composer-shadow-rest);
   color: hsl(var(--muted));
   padding: 0 0.75rem;
   font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
@@ -779,20 +735,16 @@ body {
 }
 
 .composer-action-button--burn.is-burning {
-  border-color: hsl(18 100% 58%);
+  border-color: hsl(var(--punch));
   background:
-    linear-gradient(180deg, hsl(18 100% 58% / 0.28), hsl(var(--punch) / 0.14)),
+    linear-gradient(180deg, hsl(var(--punch) / .12), hsl(var(--punch) / 0.14)),
     hsl(var(--bg));
-  box-shadow:
-    2px 2px 0 hsl(var(--shadow-offset)),
-    0 0 0 1px hsl(18 100% 58% / 0.2),
-    0 0 18px hsl(18 100% 58% / 0.2);
-  color: hsl(18 100% 58%);
+  color: hsl(var(--punch));
 }
 
 .composer-action-button--burn.is-burning svg {
-  color: hsl(18 100% 58%);
-  filter: drop-shadow(0 0 6px hsl(18 100% 58% / 0.35));
+  color: hsl(var(--punch));
+  filter: drop-shadow(0 0 6px hsl(var(--punch) / .15));
 }
 
 .composer-action-button--file {
@@ -808,13 +760,11 @@ body {
 .composer-send-button {
   border-color: hsl(var(--cyan));
   background: hsl(var(--cyan) / 0.12);
-  box-shadow: var(--composer-shadow-rest);
   color: hsl(var(--cyan));
 }
 
 .composer-action-button:hover:not(:disabled):not(.composer-control-disabled),
 .composer-send-button:hover:not(:disabled):not(.composer-control-disabled) {
-  box-shadow: var(--composer-shadow-hover);
   filter: none;
 }
 
@@ -824,7 +774,6 @@ body {
 
 .composer-action-button:active:not(:disabled):not(.composer-control-disabled),
 .composer-send-button:active:not(:disabled):not(.composer-control-disabled) {
-  box-shadow: var(--composer-shadow-active);
   transform: translate(1px, 1px);
 }
 
@@ -953,28 +902,21 @@ body {
   }
 
   .neo-panel {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
   }
   .neo-action {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
   }
   .neo-action:hover {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
     filter: none;
   }
   .neo-action:active {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
     filter: none;
   }
   .retro-upload-button {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
   }
   .retro-upload-button:hover {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
     transform: none;
   }
   .retro-upload-button:active {
-    box-shadow: 3px 3px 0 hsl(var(--shadow-offset));
     transform: none;
   }
 }
@@ -1090,96 +1032,23 @@ body {
   }
 
   .neo-panel {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   }
   .neo-action {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   }
   .neo-action:hover {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
     filter: none;
   }
   .neo-action:active {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
     filter: none;
   }
   .retro-upload-button {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
   }
   .retro-upload-button:hover {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
     transform: none;
   }
   .retro-upload-button:active {
-    box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
     transform: none;
   }
-}
-
-:root.light .neo-panel {
-  box-shadow: 5px 5px 0 hsl(var(--shadow-offset));
-}
-
-:root.light body {
-  background-image:
-    linear-gradient(hsl(var(--accent) / 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--cyan) / 0.12) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-:root.light button {
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
-}
-
-:root.light button:hover {
-  box-shadow: 5px 5px 0 hsl(var(--punch));
-}
-
-:root.light .message-delete-button,
-:root.light .message-delete-button:hover,
-:root.light .message-delete-button:active {
-  box-shadow: 2px 2px 0 hsl(var(--shadow-offset));
-  filter: none;
-  opacity: 0.78;
-  transform: none;
-}
-
-:root.light .composer-action-button,
-:root.light .composer-send-button,
-:root.light .composer-action-button:hover,
-:root.light .composer-send-button:hover,
-:root.light .composer-action-button:active,
-:root.light .composer-send-button:active {
-  box-shadow: var(--composer-shadow-rest);
-}
-
-:root.light .composer-action-button:hover:not(:disabled):not(.composer-control-disabled),
-:root.light .composer-send-button:hover:not(:disabled):not(.composer-control-disabled) {
-  box-shadow: var(--composer-shadow-hover);
-}
-
-:root.light .composer-action-button:active:not(:disabled):not(.composer-control-disabled),
-:root.light .composer-send-button:active:not(:disabled):not(.composer-control-disabled) {
-  box-shadow: var(--composer-shadow-active);
-}
-
-:root.light .retro-upload-button:hover {
-  box-shadow: 5px 5px 0 hsl(var(--punch));
-}
-
-:root.light input,
-:root.light textarea {
-  background: hsl(var(--panel));
-  border-color: hsl(var(--panel-border));
-  color: hsl(var(--text));
-}
-
-:root.light article {
-  box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
-}
-
-:root.light .code-font {
-  letter-spacing: 0.03em;
 }
 
 @media (max-width: 1023px) {
@@ -1195,14 +1064,12 @@ body {
   .composer-send-button:hover:not(:disabled):not(.composer-control-disabled),
   .composer-action-button:active:not(:disabled):not(.composer-control-disabled),
   .composer-send-button:active:not(:disabled):not(.composer-control-disabled) {
-    box-shadow: var(--composer-shadow-rest);
     filter: none;
     transform: none;
   }
 
   .composer-send-button:hover:not(:disabled):not(.composer-control-disabled),
   .composer-send-button:active:not(:disabled):not(.composer-control-disabled) {
-    box-shadow: var(--composer-shadow-rest);
   }
 
   .composer-action-button,
@@ -1211,12 +1078,10 @@ body {
     height: 2.625rem;
     flex: 0 0 2.625rem;
     max-width: none;
-    box-shadow: var(--composer-shadow-rest);
     padding: 0;
   }
 
   .composer-send-button {
-    box-shadow: var(--composer-shadow-rest);
   }
 
   .composer-action-button svg,
@@ -1233,29 +1098,6 @@ body {
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
-  }
-
-  :root.light button:hover,
-  :root.light button:active,
-  :root.light .retro-upload-button:hover,
-  :root.light .retro-upload-button:active {
-    box-shadow: 4px 4px 0 hsl(var(--shadow-offset));
-    filter: none;
-    transform: none;
-  }
-
-  :root.light .composer-action-button,
-  :root.light .composer-send-button,
-  :root.light .composer-action-button:hover,
-  :root.light .composer-send-button:hover,
-  :root.light .composer-action-button:active,
-  :root.light .composer-send-button:active {
-    box-shadow: var(--composer-shadow-rest);
-  }
-
-  :root.light .composer-action-button:hover:not(:disabled):not(.composer-control-disabled),
-  :root.light .composer-send-button:hover:not(:disabled):not(.composer-control-disabled) {
-    box-shadow: var(--composer-shadow-rest);
   }
 }
 
@@ -1375,7 +1217,7 @@ body {
 .site-footer__main { display: flex; justify-content: space-between; align-items: center; gap: 2rem; padding-bottom: 2rem; }
 .site-footer__brand { display: inline-flex; align-items: center; gap: .75rem; font-weight: 700; font-size: clamp(1.8rem,4vw,2.5rem); letter-spacing: -.055em; }
 .site-footer__brand:focus-visible { outline: 2px solid hsl(var(--cyan)); outline-offset: 6px; }
-.site-footer__mark { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid hsl(var(--cyan) / .6); color: hsl(var(--cyan)); box-shadow: 0 0 18px hsl(var(--cyan) / .08); }
+.site-footer__mark { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid hsl(var(--cyan) / .6); color: hsl(var(--cyan)); }
 .site-footer__mark svg { width: 24px; height: 24px; }
 .site-footer__identity > p { margin-top: .65rem; font-size: .875rem; color: hsl(var(--muted)); }
 .site-footer__credit { display: flex; flex-direction: column; gap: .45rem; font-size: .75rem; color: hsl(var(--muted)); }
@@ -1396,7 +1238,6 @@ body {
 }
 
 /* Refined NullChannel surfaces retain the original theme tokens and sharp geometry. */
-:root { --control-height: 44px; --page-gutter: clamp(1rem,4vw,3rem); }
 a, button, input, textarea, select, summary { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid hsl(var(--cyan)); outline-offset: 4px; }
 button, select, summary { min-height: var(--control-height); }

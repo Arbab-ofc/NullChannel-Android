@@ -1,8 +1,10 @@
 import type { ButtonHTMLAttributes } from 'react';
 
-export const Button = ({ className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger' };
+export const Button = ({ className = '', variant, type = 'button', ...props }: Props) => (
   <button
-    className={`neo-action rounded-none border-2 border-accent bg-panel px-4 py-2 text-sm font-semibold uppercase tracking-wider text-text shadow-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan disabled:opacity-50 disabled:shadow-none disabled:transform-none ${className}`}
+    type={type}
+    className={`nc-button nc-button--${variant ?? (/\bbg-accent\b/.test(className) ? 'primary' : /(?:border|text)-(?:punch|red)/.test(className) ? 'danger' : 'secondary')} ${className}`}
     {...props}
   />
 );

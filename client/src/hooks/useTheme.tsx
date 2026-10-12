@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-type Theme = 'dark' | 'light';
+import { readThemePreference, systemTheme, type Theme } from '../lib/theme';
 
 type ThemeContextValue = {
   theme: Theme;
@@ -10,18 +10,29 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('nullchannel_theme');
-    return saved === 'light' ? 'light' : 'dark';
-  });
+  const [preference, setPreference] = useState<Theme | null>(readThemePreference);
+  const [system, setSystem] = useState<Theme>(systemTheme);
+  const theme = preference ?? system;
 
   useEffect(() => {
-    localStorage.setItem('nullchannel_theme', theme);
+    if (typeof matchMedia !== 'function') return;
+    const query = matchMedia('(prefers-color-scheme: light)');
+    const changed = () => setSystem(query.matches ? 'light' : 'dark');
+    query.addEventListener?.('change', changed);
+    return () => query.removeEventListener?.('change', changed);
+  }, []);
+
+  useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   const value = useMemo(
-    () => ({ theme, toggleTheme: () => setTheme((v) => (v === 'dark' ? 'light' : 'dark')) }),
+    () => ({ theme, toggleTheme: () => {
+      const next = theme === 'dark' ? 'light' : 'dark';
+      setPreference(next);
+      try { localStorage.setItem('nullchannel_theme', next); } catch { /* Keep the in-memory preference. */ }
+    } }),
     [theme]
   );
 

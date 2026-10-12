@@ -1,11 +1,13 @@
+import { FloatingHeader } from '../components/navigation/FloatingHeader';
+import { roomCreationTarget } from '../lib/room-creation';
+import { KineticHeadline, FloatingPreview, SectionDivider, PrivacyJourney } from '../components/immersive/LandingMotion';
 import { ActiveRoomsSection } from '../components/rooms/ActiveRoomsSection';
 import { Brand } from '../components/common/Brand';
 import { SignalArt } from '../components/common/SignalArt';
-import { ProductPreview } from '../components/common/ProductPreview';
 import '../styles/landing.css';
 import { Modal } from '../components/common/Modal';
 import { TimerReset, UserCheck, MessageCircle, Radio, ArrowRight, Fingerprint, Users, LockKeyhole, ArrowUpRight, Sparkles, Zap, ShieldCheck, Mic } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { NavigationOverlay } from '../components/common/NavigationOverlay';
@@ -24,6 +26,7 @@ const expiryOptions = [
 
 export default function LandingPage() {
   const nav = useNavigate();
+  const location=useLocation();
   const senderId = useLocalSender();
   const [joinCode, setJoinCode] = useState('');
   const [roomName, setRoomName] = useState('');
@@ -52,12 +55,13 @@ export default function LandingPage() {
     setCreateError('');
     try {
       const res = await api.post('/rooms', { senderId, senderName: displayName, roomType, roomName: name, expiresInMinutes });
+      const target=roomCreationTarget(res.data.data.code);
       sessionStorage.setItem(`nullchannel_name_${res.data.data.code}`, displayName);
       setCreateType(null);
       setRoomName('');
       setCreatorName('');
       setExpiresInMinutes(1440);
-      nav(`/chat/${res.data.data.code}`);
+      nav(target.path,{state:target.state});
     } catch {
       setCreateError('Unable to create room. Try again.');
     } finally {
@@ -82,12 +86,12 @@ export default function LandingPage() {
   },[]);
 
   return <main className="landing-page">
-    <div className="landing-container">
-      <header className="landing-header">
+    <div className="landing-container landing-header-frame">
+      <FloatingHeader className="landing-header" panelContent={<><nav aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink><Link to="/login">Log in</Link><Link to="/signup">Get started</Link></nav><div className="infinite-navigation__actions"><ThemeToggle/><Button onClick={()=>setCreateType('private')}>Create Private</Button><Button onClick={()=>setCreateType('group')}>Create Group</Button></div></>}>
         <Link to="/" aria-label="NullChannel home"><Brand /></Link>
-        <nav className="landing-nav" aria-label="Main navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><Link to="/explore">Explore</Link><Link to="/docs">Docs</Link></nav>
+        <nav className="landing-nav" aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink></nav>
         <div className="landing-header__actions"><ThemeToggle/><Link to="/login" className="landing-login">Log in</Link><Link to="/signup" className="nc-button nc-button--primary landing-signup">Get started <ArrowUpRight aria-hidden="true" size={16}/></Link><button className="landing-menu nc-button nc-button--secondary" aria-label="Toggle menu" aria-expanded={menuOpen} aria-controls="public-navigation" onClick={()=>setMenuOpen(value=>!value)}><Menu aria-hidden="true" size={20}/></button></div>
-      </header>
+      </FloatingHeader>
       <NavigationOverlay desktopBreakpoint={1024} id="public-navigation" title="Make yourself at home." open={menuOpen} close={closeMenu} immediate={createType !== null}>
         <section className="command-group"><h3>Discover</h3><div><a href="#features" onClick={closeMenu}>Features</a><a href="#how-it-works" onClick={closeMenu}>How it works</a><Link to="/explore">Explore</Link><Link to="/docs">Documentation</Link><Link to="/login">Login</Link><Link to="/signup">Sign Up</Link></div></section>
         <section className="command-group"><h3>Your next conversation</h3><div><Button onClick={()=>{closeMenu();setCreateType('private');}}>Create Private</Button><Button onClick={()=>{closeMenu();setCreateType('group');}}>Create Group</Button></div></section>
@@ -97,12 +101,12 @@ export default function LandingPage() {
       <div className="landing-container hero-composition">
         <div className="hero-copy">
           <p className="nc-eyebrow">A space for the here and now</p>
-          <h1>Connect permanently.<br/><span>Converse temporarily.</span></h1>
+          <KineticHeadline/>
           <p className="hero-description">Keep the people. Leave the history.<br/>Real connections, in conversations made to disappear.</p>
           <div className="hero-actions"><Link to="/signup" className="nc-button nc-button--primary">Get Started <ArrowUpRight aria-hidden="true"/></Link><Button variant="ghost" onClick={()=>setCreateType('private')}>Continue Anonymously <ArrowRight aria-hidden="true"/></Button></div>
           <div className="hero-footnote"><span className="signal-dot"/> No account needed to start a guest room.</div>
         </div>
-        <div className="hero-visual"><SignalArt/><div className="hero-sticker" aria-hidden="true"><Sparkles size={16}/> here, then gone.</div><ProductPreview/></div>
+        <div className="hero-visual"><SignalArt/><div className="hero-sticker" aria-hidden="true"><Sparkles size={16}/> here, then gone.</div><FloatingPreview/></div>
       </div>
     </section>
     <div className="landing-container">
@@ -120,7 +124,8 @@ export default function LandingPage() {
           <article><Radio aria-hidden="true"/><h3>Find your frequency.</h3><p>Discover public rooms or make a private group. Every room has a finite lifetime.</p><Link to="/explore">Explore rooms <ArrowUpRight aria-hidden="true" size={18}/></Link></article>
         </div>
       </section>
-      <section id="how-it-works" className="landing-section"><div className="section-heading"><div><p className="nc-eyebrow">No complicated introductions</p><h2>A little hello goes a long way.</h2></div></div><ol className="journey-steps">{[{Icon:UserCheck,title:'Choose your mode.',text:'Drop in as a guest, or keep your connections with an account.'},{Icon:MessageCircle,title:'Find your people.',text:'Invite a friend, explore a room, or meet someone anonymously.'},{Icon:Zap,title:'Be in the moment.',text:'Talk, share and connect. When the session ends, access ends too.'}].map(({Icon,title,text},index)=><li key={title}><div><span>0{index+1}</span><Icon aria-hidden="true"/></div><h3>{title}</h3><p>{text}</p></li>)}</ol></section>
+      <SectionDivider/><section id="how-it-works" className="landing-section"><div className="section-heading"><div><p className="nc-eyebrow">No complicated introductions</p><h2>A little hello goes a long way.</h2></div></div><ol className="journey-steps">{[{Icon:UserCheck,title:'Choose your mode.',text:'Drop in as a guest, or keep your connections with an account.'},{Icon:MessageCircle,title:'Find your people.',text:'Invite a friend, explore a room, or meet someone anonymously.'},{Icon:Zap,title:'Be in the moment.',text:'Talk, share and connect. When the session ends, access ends too.'}].map(({Icon,title,text},index)=><li key={title}><div><span>0{index+1}</span><Icon aria-hidden="true"/></div><h3>{title}</h3><p>{text}</p></li>)}</ol></section>
+      <PrivacyJourney/><SectionDivider/>
       <section className="privacy-story landing-section"><div><p className="nc-eyebrow">Built around a simple principle</p><h2>Friendship persists.<br/><span>Conversations don’t.</span></h2><p>Accounts, friends and settings can stay. Rooms, messages, attachments and session identities expire. There’s no chat restoration.</p><p className="privacy-story__note">Access ends immediately at expiry. Server cleanup and external media deletion may take time. Screenshots and downloaded copies remain outside our control.</p><Link to="/docs#privacy">Read how privacy works <ArrowUpRight aria-hidden="true" size={18}/></Link></div><div className="privacy-manifest"><ShieldCheck aria-hidden="true"/><div><span>Keep</span><p>People. Preferences. Your profile.</p></div><div><span>Let go</span><p>Rooms. Messages. The conversation.</p></div><p>No recovery button. No permanent threads.</p></div></section>
       <section className="landing-section landing-faq"><div><p className="nc-eyebrow">Good questions</p><h2>Before you say hello.</h2></div><div>{[
         ['Is registration required?','No. Continue anonymously to create or join a guest room.'],

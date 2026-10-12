@@ -1,3 +1,5 @@
+import { LoadingSignal } from './components/common/LoadingSignal';
+import { RoomCreatedFeedback } from './components/immersive/RoomCreatedFeedback';
 import { PageTransition } from './components/common/PageTransition';
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -22,7 +24,7 @@ const MatchPage=lazy(()=>import('./pages/TemporaryPages').then(module=>({default
 const DocsPage=lazy(()=>import('./pages/DocsPage'));
 export default function App() {
   const location = useLocation();
-  return <AccountProvider><ErrorBoundary key={location.pathname}><Suspense fallback={<main className="min-h-[60dvh] p-8" role="status">Loading NullChannel…</main>}><PageTransition><Routes>
+  return <AccountProvider><ErrorBoundary key={location.pathname}><Suspense fallback={<main className="min-h-[60dvh] p-8"><LoadingSignal variant="page" label="Loading NullChannel"/></main>}><PageTransition><Routes>
     <Route path="/" element={<LandingPage />} />
     <Route path="/features" element={<LandingPage />} />
     <Route path="/docs" element={<DocsPage />} />
@@ -49,5 +51,5 @@ export default function App() {
     </Route>
     <Route path="/404" element={<NotFoundPage />} />
     <Route path="*" element={<Navigate to="/404" replace />} />
-  </Routes></PageTransition></Suspense></ErrorBoundary>{!location.pathname.startsWith('/chat/') && <Footer />}</AccountProvider>;
+  </Routes></PageTransition></Suspense></ErrorBoundary><RoomCreatedFeedback/>{!location.pathname.startsWith('/chat/') && <Footer />}</AccountProvider>;
 }

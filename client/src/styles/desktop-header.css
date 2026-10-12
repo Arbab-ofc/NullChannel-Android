@@ -1,0 +1,105 @@
+/* New account destinations never become mobile flex items. All visual overrides start at 768px. */
+.large-header-nav{display:none}
+@media(min-width:768px){
+ header.command-header{position:sticky;top:16px;z-index:40;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,24px);padding:12px 18px;margin-inline:auto;border:1px solid hsl(var(--panel-border)/.9);border-radius:22px;background:hsl(var(--panel)/.88);box-shadow:0 8px 28px hsl(var(--shadow-offset)/.08),inset 0 1px 0 hsl(var(--text)/.035);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);isolation:isolate;overflow:visible}
+ .command-header>a{display:inline-flex;align-items:center;justify-self:start;min-height:44px;border-radius:10px;white-space:nowrap}
+ .command-header .nc-brand{font-size:1.2rem;letter-spacing:-.045em}
+ .command-header .landing-header__actions,.command-header .account-header__tools{grid-column:3;justify-self:end;display:flex;align-items:center;gap:8px;white-space:nowrap}
+ .landing-header-frame{position:sticky;top:0;z-index:40;padding-top:16px}
+ .landing-header.command-header{position:relative;top:auto;margin-top:0;max-width:100%;grid-template-columns:auto minmax(0,1fr) auto}
+ .command-header .landing-nav,.command-header .large-header-nav{display:flex;align-items:center;justify-content:center;justify-self:center;gap:4px;min-width:0}
+ .command-header .landing-nav>a,.command-header .large-header-nav>a,.header-overflow>summary{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:10px 12px;border-radius:12px;font-size:.75rem;font-weight:500;line-height:1.3;color:hsl(var(--muted));white-space:nowrap;transition:color var(--motion-fast),background-color var(--motion-fast)}
+ .command-header .landing-nav>a:after,.command-header .large-header-nav>a:after{content:'';position:absolute;left:12px;right:12px;bottom:5px;height:2px;border-radius:999px;background:hsl(var(--accent));transform:scaleX(0);transform-origin:center;transition:transform var(--motion-normal)}
+ .command-header nav>a[aria-current]{color:hsl(var(--text));background:hsl(var(--accent)/.085)}
+ .command-header nav>a[aria-current]:after{transform:scaleX(1)}
+ .command-header .landing-login{padding:10px 12px;border-radius:12px;min-height:44px}
+ .command-header .landing-signup{border-radius:14px;padding-inline:16px;font-size:.75rem;box-shadow:inset 0 1px 0 hsl(var(--text)/.12)}
+ .command-header .theme-picker>summary{background:hsl(var(--surface-raised)/.6);border-color:hsl(var(--panel-border))}
+ .command-header .account-header__tools>.nc-button{border-radius:12px;min-height:44px}
+ .command-header .account-menu,.command-header .landing-menu{border-radius:12px}
+ .command-header.command-header--minimal{grid-template-columns:minmax(0,1fr) auto;margin-bottom:32px}
+ .command-header--minimal>.theme-picker{justify-self:end}
+ .account-header.command-header{max-width:100%;margin-bottom:0;padding-bottom:12px}
+ .header-overflow{position:relative;flex-shrink:0}
+ .header-overflow>summary{cursor:pointer;list-style:none}
+ .header-overflow>summary::-webkit-details-marker{display:none}
+ .header-overflow>summary svg{width:14px;height:14px;transition:transform var(--motion-fast)}
+ .header-overflow[open]>summary svg{transform:rotate(180deg)}
+ .header-overflow[data-active=true]>summary{color:hsl(var(--accent));background:hsl(var(--accent)/.085)}
+ .header-overflow__panel{position:absolute;top:calc(100% + 12px);right:0;width:240px;max-width:calc(100vw - 40px);max-height:calc(100dvh - 120px);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:3px;padding:10px;border:1px solid hsl(var(--panel-border));border-radius:18px;background:hsl(var(--panel));box-shadow:var(--elevation-dialog)}
+ .header-overflow[open] .header-overflow__panel{animation:header-menu-enter 140ms ease-out}
+ .header-overflow__panel a{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 12px;border-radius:10px;font-size:.8rem;color:hsl(var(--muted))}
+ .header-overflow__panel a[aria-current]{color:hsl(var(--accent));background:hsl(var(--accent)/.1)}
+ .header-overflow__panel svg{width:17px;height:17px;flex-shrink:0}
+ .command-header :is(a,button,summary):focus-visible{outline:2px solid hsl(var(--accent));outline-offset:3px}
+ :root.oled header.command-header{background:hsl(var(--bg)/.94);box-shadow:0 8px 28px hsl(var(--shadow-offset)/.12),inset 0 1px 0 hsl(var(--text)/.035)}
+ @keyframes header-menu-enter{from{opacity:.5;transform:translateY(-4px)}to{opacity:1;transform:none}}
+}
+@media(min-width:768px) and (max-width:1023px){
+ header.command-header{padding:10px 14px;gap:10px;border-radius:20px}
+ .command-header .nc-brand{font-size:1.1rem}
+ .command-header .landing-nav>a:nth-child(-n+2),.command-header .large-header-nav>a[href="/friends"],.command-header .header-overflow{display:none}
+ .command-header .landing-nav>a,.command-header .large-header-nav>a{padding-inline:9px;font-size:.7rem}
+ .command-header .landing-header__actions,.command-header .account-header__tools{gap:6px}
+ .command-header .landing-login{padding-inline:8px}
+ .command-header .landing-signup{padding-inline:12px}
+}
+@media(min-width:1024px){
+ .command-header .landing-menu{display:none}
+ /* Keep existing sidebar links clear of the new sticky account header. */
+ .account-body .account-navigation{top:104px}
+}
+@media(min-width:768px) and (hover:hover){
+ .command-header .landing-nav>a:hover,.command-header .large-header-nav>a:hover,.command-header .landing-login:hover,.header-overflow>summary:hover,.header-overflow__panel a:hover{background:hsl(var(--surface-raised));color:hsl(var(--text))}
+}
+@media(min-width:768px) and (prefers-reduced-motion:reduce){
+ .command-header a,.command-header a:after,.header-overflow>summary,.header-overflow>summary svg{transition:none}.header-overflow[open] .header-overflow__panel{animation:none}
+}
+@media(min-width:768px){
+ .landing-page :is(#features,#how-it-works){scroll-margin-top:112px}
+ .docs-shell :is(.docs-topic,.docs-endpoint){scroll-margin-top:112px}
+ .docs-shell .docs-layout>aside{top:112px;max-height:calc(100dvh - 128px)}
+}
+
+/* Landing navigation: full-width architectural band, never a floating pill.
+   Keep these overrides desktop/tablet-only to preserve the mobile header. */
+@media (min-width:768px) {
+ .landing-page .landing-header-frame {
+  max-width:none;width:100%;padding:0;top:0;
+  border-bottom:1px solid hsl(var(--panel-border)/.8);
+  background:linear-gradient(110deg,hsl(var(--accent)/.045),transparent 40%,hsl(var(--cyan)/.035)),hsl(var(--panel)/.94);
+  box-shadow:0 6px 24px hsl(var(--shadow-offset)/.045);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+ }
+ .landing-header-frame header.landing-header.command-header {
+  width:min(calc(100% - 64px),1440px);max-width:1440px;
+  height:84px;min-height:84px;margin:0 auto;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  gap:24px;grid-template-columns:auto minmax(0,1fr) auto;
+ }
+ .landing-header.command-header .nc-brand {font-size:1.65rem;gap:12px;letter-spacing:-.055em}
+ .landing-header.command-header .nc-brand img {width:40px;height:40px}
+ .landing-header.command-header .landing-nav {gap:8px}
+ .landing-header.command-header .landing-nav>a {font-size:.9375rem;min-height:48px;padding:12px;border-radius:10px}
+ .landing-header.command-header .landing-nav>a:after {bottom:4px;left:12px;right:12px}
+ .landing-header.command-header .landing-header__actions {gap:12px}
+ .landing-header.command-header .landing-login {font-size:.9375rem;min-height:48px;padding:12px}
+ .landing-header.command-header .landing-signup {font-size:.875rem;min-height:48px;padding-inline:20px;border-radius:12px}
+ .landing-header.command-header .theme-picker>summary {width:48px;height:48px}
+ :root.oled .landing-page .landing-header-frame {background:linear-gradient(110deg,hsl(var(--accent)/.035),transparent 45%),#000}
+ :root.oled .landing-header-frame header.landing-header.command-header {background:transparent;box-shadow:none}
+}
+@media (min-width:768px) and (max-width:1023px) {
+ .landing-header-frame header.landing-header.command-header {
+  width:calc(100% - 48px);height:76px;min-height:76px;gap:16px;
+ }
+ .landing-header.command-header .nc-brand {font-size:1.4rem;gap:10px}
+ .landing-header.command-header .nc-brand img {width:36px;height:36px}
+ .landing-header.command-header .landing-nav {gap:2px}
+ .landing-header.command-header .landing-nav>a {padding-inline:8px;font-size:.875rem}
+ .landing-header.command-header .landing-header__actions {gap:8px}
+ .landing-header.command-header .landing-login {padding-inline:8px;font-size:.875rem}
+ .landing-header.command-header .landing-signup {padding-inline:14px;font-size:.8125rem}
+ .landing-header.command-header .landing-menu {min-width:44px;min-height:44px}
+}

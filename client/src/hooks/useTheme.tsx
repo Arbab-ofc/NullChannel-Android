@@ -5,6 +5,7 @@ import { readThemePreference, systemTheme, type Theme } from '../lib/theme';
 type ThemeContextValue = {
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -24,11 +25,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
-    document.documentElement.style.colorScheme = theme;
+    document.documentElement.classList.toggle('oled',theme === 'oled');
+    document.documentElement.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+    const frame=requestAnimationFrame(()=>document.documentElement.classList.add('theme-transitions'));
+    return()=>cancelAnimationFrame(frame);
   }, [theme]);
 
   const value = useMemo(
-    () => ({ theme, toggleTheme: () => {
+    () => ({ theme, setTheme: (next:Theme)=>{setPreference(next);try{localStorage.setItem('nullchannel_theme',next);}catch{/* In-memory preference remains available. */}}, toggleTheme: () => {
       const next = theme === 'dark' ? 'light' : 'dark';
       setPreference(next);
       try { localStorage.setItem('nullchannel_theme', next); } catch { /* Keep the in-memory preference. */ }

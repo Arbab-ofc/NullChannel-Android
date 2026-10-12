@@ -19,7 +19,7 @@ import { GroupTools } from '../components/chat/GroupTools';
 import { accountApi, accountError } from '../lib/account';
 import { useAccount } from '../hooks/useAccount';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link,useNavigate, useParams } from 'react-router-dom';
 import { Radio, DoorOpen, Power, Rows2, ImagePlus, Menu, X, House, Trash2, Mic, Square, Pencil, Send, TimerReset, Reply, SmilePlus, MoreVertical, Paperclip, FileText, Download, Pin, PinOff, Images, ExternalLink, Siren, Flame } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { mergeHistory } from '../lib/messages';
@@ -85,7 +85,9 @@ export default function ChatPage() {
   const [editingBusy, setEditingBusy] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Msg | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const messageMenuAnchor=useRef<HTMLElement|null>(null);
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const closeMessageMenu=useCallback(()=>setMessageMenuId(null),[]);
   const [reactionBusyIds, setReactionBusyIds] = useState<Record<string, boolean>>({});
   const [burnAfterReadMode, setBurnAfterReadMode] = useState(false);
   const [ttlSeconds,setTtlSeconds]=useState(0);const [viewOnce,setViewOnce]=useState(false);
@@ -124,7 +126,7 @@ export default function ChatPage() {
   const dirtyMessageIds = useRef(new Set<string>());
   const wipedAt = useRef(0);
   const {style:viewport}=useViewportState();
-  const connectionStatus = useConnectionStatus();
+  const connectionStatus = useConnectionStatus(socket);
   const [attachment,setAttachment]=useState<PendingAttachment|null>(null);
   const attachmentBusy=useRef(false);
   const currentAccess=useRef({code,isJoined});currentAccess.current={code,isJoined};
@@ -143,7 +145,7 @@ export default function ChatPage() {
     return () => { socket.off('connect',online); socket.off('disconnect',offline); };
   },[socket]);
 
-  const { call: voiceCall, view: voiceView } = useVoiceCall(socket,code.toUpperCase(),!!room && room.room_type === 'private' && isJoined && !expiredNotice,room?.expires_at);
+  const { call: voiceCall, view: voiceView } = useVoiceCall(socket,code.toUpperCase(),!!room && room.room_type === 'private' && isJoined && !expiredNotice,room?.expires_at,pageState==='ready');
 
   useEffect(() => { if (voiceView.phase === 'incoming') { setExtendModalOpen(false); setMenuOpen(false); setAttachmentSheet(false); setMessageMenuId(null); } },[voiceView.phase]);
 
@@ -253,14 +255,16 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!room) return;
-    socket.on('participants-updated', (payload: { roomId: string; online: string[] }) => {
+    const bindings:Array<()=>void>=[];
+    const listen=<T,>(event:string,handler:(payload:T)=>void)=>{socket.on(event,handler);bindings.push(()=>socket.off(event,handler));};
+    listen('participants-updated', (payload: { roomId: string; online: string[] }) => {
       if (payload.roomId === room.id) setParticipants(current => current.map(member => ({ ...member, online: payload.online.includes(member.sender_id) })));
     });
     const onMembershipRevoked = (payload: { code: string }) => {
       if (payload.code === room.code) { setIsJoined(false); setMessages([]); setParticipants([]); setTypingUsers({}); }
     };
-    socket.on('membership-revoked',onMembershipRevoked);
-    socket.on('room-joined', (joinedRoom: Room) => {
+    listen('membership-revoked',onMembershipRevoked);
+    listen('room-joined', (joinedRoom: Room) => {
       setRoom(current => current?.id === joinedRoom.id && current?.expires_at === joinedRoom.expires_at ? current : joinedRoom);
       void loadHistory(joinedRoom.code).catch(() => setJoinError('Unable to load message history.'));
       setIsJoined(true);
@@ -269,7 +273,7 @@ export default function ChatPage() {
       loadMyRooms().catch(() => undefined);
       if (room) loadParticipants(room.code).catch(() => undefined);
     });
-    socket.on('socket-error', (payload: { code?: string; message?: string }) => {
+    listen('socket-error', (payload: { code?: string; message?: string }) => {
       setJoinBusy(false);
       if (payload?.code === 'ROOM_FULL') {
         setJoinError('Private channel is full (max 2 users).');
@@ -286,7 +290,7 @@ export default function ChatPage() {
       }
       if (payload?.message) setJoinError(payload.message);
     });
-    socket.on('receive-message', (msg: Msg) => {
+    listen('receive-message', (msg: Msg) => {
       if ((msg.room_id && msg.room_id !== room.id) || (msg.id && removedMessageIds.current.has(msg.id))) return;
       if (wipedAt.current && msg.created_at && Date.parse(msg.created_at) <= wipedAt.current) return;
       if (msg.id) receiveMessage(msg.id,msg.sender_id === senderId);
@@ -299,7 +303,7 @@ export default function ChatPage() {
         return next;
       });
     });
-    socket.on('message-deleted', (payload: { messageId?: string; deletedBy?: string; deletedByName?: string }) => {
+    listen('message-deleted', (payload: { messageId?: string; deletedBy?: string; deletedByName?: string }) => {
       if (payload.messageId) dirtyMessageIds.current.add(payload.messageId);
       if (!payload.messageId) return;
       setMessages((p) => p.map((message) => (message.id === payload.messageId ? {
@@ -316,7 +320,7 @@ export default function ChatPage() {
         return next;
       });
     });
-    socket.on('message-edited', (payload: { messageId?: string; content?: string }) => {
+    listen('message-edited', (payload: { messageId?: string; content?: string }) => {
       if (payload.messageId) dirtyMessageIds.current.add(payload.messageId);
       if (!payload.messageId || typeof payload.content !== 'string') return;
       setMessages((p) => p.map((message) => (message.id === payload.messageId ? {
@@ -325,7 +329,7 @@ export default function ChatPage() {
         edited: true
       } : message)));
     });
-    socket.on('message-reactions', (payload: { messageId?: string; reactions?: ReactionSummary[] }) => {
+    listen('message-reactions', (payload: { messageId?: string; reactions?: ReactionSummary[] }) => {
       if (payload.messageId) dirtyMessageIds.current.add(payload.messageId);
       if (!payload.messageId || !Array.isArray(payload.reactions)) return;
       setMessages((p) => p.map((message) => (message.id === payload.messageId ? {
@@ -333,7 +337,7 @@ export default function ChatPage() {
         reactions: payload.reactions
       } : message)));
     });
-    socket.on('message-burned', (payload: { messageId?: string }) => {
+    listen('message-burned', (payload: { messageId?: string }) => {
       if (payload.messageId) dirtyMessageIds.current.add(payload.messageId);
       if (!payload.messageId) return;
       removedMessageIds.current.add(payload.messageId);
@@ -342,7 +346,7 @@ export default function ChatPage() {
       setReactionPickerMessageId((current) => (current === payload.messageId ? null : current));
       setMessageMenuId((current) => (current === payload.messageId ? null : current));
     });
-    socket.on('user-left', (payload: { senderId?: string; senderName?: string }) => {
+    listen('user-left', (payload: { senderId?: string; senderName?: string }) => {
       if (payload?.senderId === senderId) return;
       if (payload.senderId) {
         window.clearTimeout(typingTimeouts.current[payload.senderId]);
@@ -361,13 +365,13 @@ export default function ChatPage() {
         });
       }
     });
-    socket.on('user-joined', (payload: { senderId?: string; senderName?: string }) => {
+    listen('user-joined', (payload: { senderId?: string; senderName?: string }) => {
       if (!payload?.senderId || payload.senderId === senderId) return;
       const name = payload.senderName ?? 'A user';
       setNotices((p) => [...p, { id: `${Date.now()}-${Math.random()}`, text: `${name} joined the room` }]);
       loadParticipants(room.code).catch(() => undefined);
     });
-    socket.on('user-typing', (payload: TypingPayload) => {
+    listen('user-typing', (payload: TypingPayload) => {
       if (!payload.senderId || payload.senderId === senderId || payload.roomCode !== room.code) return;
       const name = payload.senderName ?? `User-${payload.senderId.slice(0, 6)}`;
       setTypingUsers((p) => p[payload.senderId as string] === name ? p : ({ ...p, [payload.senderId as string]: name }));
@@ -386,8 +390,8 @@ export default function ChatPage() {
       loadMyRooms().catch(() => undefined);
       showExpiredPopup(payload.reason === 'terminated-by-creator' ? 'terminated-by-creator' : 'expired');
     };
-    socket.on('room-expired',onRoomExpired);
-    socket.on('room-extended', (payload: { code?: string; expiresAt?: string; extendByMinutes?: number } = {}) => {
+    listen('room-expired',onRoomExpired);
+    listen('room-extended', (payload: { code?: string; expiresAt?: string; extendByMinutes?: number } = {}) => {
       if (payload.code !== room.code || !payload.expiresAt) return;
       const expiresAt = payload.expiresAt;
       setRoom((current) => (current && current.code === room.code ? { ...current, expires_at: expiresAt, expiry_extended: true } : current));
@@ -395,12 +399,12 @@ export default function ChatPage() {
       const minutes = payload.extendByMinutes ?? 0;
       setNotices((p) => [...p, { id: `${Date.now()}-${Math.random()}`, text: minutes > 0 ? `Room extended by ${minutes} min` : 'Room expiry extended' }]);
     });
-    socket.on('message-pinned', (payload: { code?: string; pinnedMessageId?: string | null } = {}) => {
+    listen('message-pinned', (payload: { code?: string; pinnedMessageId?: string | null } = {}) => {
       if (payload.code !== room.code) return;
       setRoom((current) => (current && current.code === room.code ? { ...current, pinned_message_id: payload.pinnedMessageId ?? null } : current));
       setNotices((p) => [...p, { id: `${Date.now()}-${Math.random()}`, text: payload.pinnedMessageId ? 'Message pinned' : 'Pinned message cleared' }]);
     });
-    socket.on('room-wiped', (payload: { code?: string; wipedMessages?: number; wipedAt?: string } = {}) => {
+    listen('room-wiped', (payload: { code?: string; wipedMessages?: number; wipedAt?: string } = {}) => {
       if (payload.code !== room.code) return;
       if (payload.wipedAt) wipedAt.current = Date.parse(payload.wipedAt);
       setMessages(current => payload.wipedAt ? current.filter(message => message.created_at && Date.parse(message.created_at) > Date.parse(payload.wipedAt!)) : []);
@@ -417,27 +421,10 @@ export default function ChatPage() {
         socket.emit('join-room', { roomCode: room.code, senderId, senderName });
       }
     };
-    socket.on('connect', rejoin);
+    listen('connect', rejoin);
     if (socket.connected) rejoin();
 
-    return () => {
-      socket.off('connect', rejoin);
-      socket.off('receive-message');
-      socket.off('room-expired',onRoomExpired);
-      socket.off('socket-error');
-      socket.off('user-left');
-      socket.off('user-joined');
-      socket.off('user-typing');
-      socket.off('message-deleted');
-      socket.off('message-edited');
-      socket.off('message-reactions');
-      socket.off('message-burned');
-      socket.off('room-extended');
-      socket.off('message-pinned');
-      socket.off('room-wiped');
-      socket.off('room-joined');
-      socket.off('membership-revoked',onMembershipRevoked);
-      socket.off('participants-updated');
+    return () => {bindings.forEach(remove=>remove());
       Object.values(typingTimeouts.current).forEach((id) => window.clearTimeout(id));
       typingTimeouts.current = {};
     };
@@ -1037,7 +1024,7 @@ export default function ChatPage() {
                 </Button>
               )}
             </div></section>
-          <section className="command-group"><h3>Navigation</h3><div><Button onClick={() => { closeMenu(); nav('/'); }}><House className="mr-2 inline h-4 w-4" />Home</Button></div></section>
+          <section className="command-group"><h3>Navigation</h3><div><Button onClick={() => { closeMenu(); nav(profile?'/dashboard':'/'); }}><House className="mr-2 inline h-4 w-4" />Home</Button></div></section>
           {room.creator_id === senderId && <section className="command-group command-group--danger"><h3>Danger Zone</h3><div>
               {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={panicWipeRoom} disabled={wipeBusy}><Siren className="mr-2 inline h-4 w-4" />{wipeBusy ? <LoadingSignal label="Wiping" /> : 'Panic Wipe'}</Button>}
               {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={terminateRoom} disabled={terminateBusy}><Power className="mr-2 inline h-4 w-4" />{terminateBusy ? <LoadingSignal label="Terminating" /> : 'Terminate'}</Button>}
@@ -1104,7 +1091,7 @@ export default function ChatPage() {
               <div className="message-actions relative">
                 <button
                   className={`message-delete-button ${messageMenuId === m.id ? 'message-delete-button--active' : ''}`}
-                  onClick={() => setMessageMenuId((current) => (current === m.id ? null : m.id ?? null))}
+                  onClick={event => {messageMenuAnchor.current=event.currentTarget.closest('article');setMessageMenuId((current) => (current === m.id ? null : m.id ?? null));}}
                   aria-label="Open message options"
                   title="Message options"
                   type="button"
@@ -1112,7 +1099,7 @@ export default function ChatPage() {
                   {messageMenuId === m.id ? <X className="h-3.5 w-3.5" /> : <MoreVertical className="h-3.5 w-3.5" />}
                 </button>
                 {messageMenuId === m.id && (
-                  <ResponsiveActions close={()=>setMessageMenuId(null)} className={`message-options-menu ${m.sender_id === senderId ? 'right-0' : 'left-0'}`}>
+                  <ResponsiveActions anchor={messageMenuAnchor.current} close={closeMessageMenu} className={`message-options-menu ${m.sender_id === senderId ? 'right-0' : 'left-0'}`}>
                     {isJoined && (
                       <button type="button" onClick={() => startReply(m)}>
                         <Reply className="h-3.5 w-3.5" />
@@ -1388,7 +1375,7 @@ export default function ChatPage() {
     </section>
 
     <aside className="chat-context neo-panel hidden min-h-0 min-w-0 overflow-y-auto p-3 xl:block">
-        <div className="desktop-session-controls"><a href="/" aria-label="NullChannel home"><Brand/></a><p className="nc-eyebrow">Session controls</p>
+        <div className="desktop-session-controls"><Link to={profile?'/dashboard':'/'} aria-label="NullChannel home"><Brand/></Link><p className="nc-eyebrow">Session controls</p>
           {room.creator_id !== senderId && (
             <Button className={!isJoined ? 'bg-accent text-bg' : ''} onClick={isJoined ? leaveRoom : () => joinCurrentRoom()} disabled={(joinBusy && !isJoined) || leaveBusy}>
               <DoorOpen className="mr-2 inline h-4 w-4" />
@@ -1398,7 +1385,7 @@ export default function ChatPage() {
           <ThemeToggle />
           <CopyButton value={room.code} label="Copy Channel ID" onCopied={()=>showToast('Channel ID copied')} onError={showToast}/>
           <CopyButton value={window.location.href} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
-          <Button onClick={() => nav('/')}><House className="mr-2 inline h-4 w-4" />Home</Button>
+          <Button onClick={() => nav(profile?'/dashboard':'/')}><House className="mr-2 inline h-4 w-4" />Home</Button>
           {room.creator_id === senderId && (
             <Button
               className="border-cyan text-cyan"

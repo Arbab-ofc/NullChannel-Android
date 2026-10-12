@@ -40,7 +40,7 @@ export const VoiceCallUI = ({ view, call, microphoneBusy }: { view: CallView; ca
     {view.accepting && <Button className="mt-3 min-h-11 w-full" onClick={() => call.end()}>Cancel</Button>}
   </dialog>;
   const active = callIsActive(view.phase);
-  const status: Record<string,string> = { outgoing: 'Calling…',connecting: 'Connecting voice…',connected: 'Voice Call Connected',reconnecting: 'Reconnecting voice…',ended: 'Call ended',failed: 'Call failed' };
+  const status: Record<string,string> = { outgoing: 'Calling…',connecting: 'Connecting voice…',connected: 'Voice Call Connected',reconnecting: 'Reconnecting call...',ended: 'Call ended',failed: 'Call failed' };
   return <section aria-label="Voice call" className="neo-panel mx-2 my-2 max-h-[40svh] shrink-0 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:mx-0 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0 flex-1"><p role="status" aria-live="polite" className="code-font text-sm text-cyan">{status[view.phase]}</p>

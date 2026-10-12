@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { Socket } from 'socket.io-client';
-import { AudioPeer, iceConfiguration, microphoneError } from '../lib/webrtc';
+import { AudioPeer, iceConfiguration, microphoneError,type AudioCallbacks } from '../lib/webrtc';
 import { VoiceCall, callTransitions } from '../lib/voice-call';
 class Peer {
   static last: Peer;
@@ -120,6 +120,13 @@ describe('frontend call state and signaling lifecycle',() => {
   it('cleans up on socket loss and never resumes a stale call after reconnect',async () => {
     const s = signaling(); const call = new VoiceCall(s.socket,'TEST1234'); call.attach(); await call.invite(); s.emit('call:outgoing',{ callId: 'id',roomCode: 'TEST1234' });
     s.emit('disconnect','transport close'); expect(call.snapshot().phase).toBe('ended'); s.emit('connect',undefined); expect(call.snapshot().phase).toBe('ended'); call.dispose();
+  });
+  it('keeps healthy audio through signaling loss, resumes after authorized room rejoin and bounds failure',async()=>{
+    vi.useFakeTimers();const s=signaling();const cb={current:null as AudioCallbacks|null};
+    const engine={offer:vi.fn(async()=>{}),close:vi.fn(),recover:vi.fn(),connected:true} as unknown as AudioPeer;
+    const call=new VoiceCall(s.socket,'TEST1234',(_caller,callbacks)=>{cb.current=callbacks;return engine;});call.attach();await call.invite();s.emit('call:outgoing',{callId:'id',roomCode:'TEST1234'});s.emit('call:accepted',{callId:'id'});cb.current!.state('connected');
+    s.socket.connected=false;s.emit('disconnect','transport close');expect(call.snapshot().phase).toBe('reconnecting');expect(engine.close).not.toHaveBeenCalled();s.socket.connected=true;s.emit('room-joined',{code:'TEST1234'});await Promise.resolve();await Promise.resolve();await Promise.resolve();expect(s.send).toHaveBeenCalledWith('call:resume',{callId:'id'},expect.any(Function));expect(call.snapshot().phase).toBe('connected');
+    await vi.advanceTimersByTimeAsync(15*60*1000);expect(engine.close).not.toHaveBeenCalled();s.socket.connected=false;s.emit('disconnect','transport close');await vi.advanceTimersByTimeAsync(10001);expect(call.snapshot().phase).toBe('failed');expect(engine.close).toHaveBeenCalledOnce();call.dispose();
   });
   it('dismisses missed calls and ignores unrelated signaling',() => {
     const s = signaling(); const call = new VoiceCall(s.socket,'TEST1234'); call.attach(); s.emit('call:incoming',{ callId: 'id',roomCode: 'OTHER123' }); expect(call.snapshot().phase).toBe('idle');

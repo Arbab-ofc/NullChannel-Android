@@ -1,0 +1,10 @@
+// @vitest-environment jsdom
+import {act} from 'react';import {createRoot,type Root} from 'react-dom/client';import {beforeEach,afterEach,it,expect,vi} from 'vitest';
+const {primary,secondary,active,connect,disconnect,isolated}=vi.hoisted(()=>({primary:{connected:true,auth:{}},secondary:{connected:false,auth:{}},active:{value:null as {roomCode:string;signalingSocket:unknown}|null},connect:vi.fn(),disconnect:vi.fn(),isolated:vi.fn()}));
+vi.mock('../lib/active-calls',()=>({activeCallSnapshot:()=>active.value}));vi.mock('../lib/socket',()=>({socket:primary,isolatedRoomSocket:isolated,connectRoomTransport:connect,disconnectRoomTransport:disconnect}));
+import {useSocket} from '../hooks/useSocket';let root:Root,host:HTMLDivElement,last:unknown;
+function View({code}:{code:string}){last=useSocket(code);return null;}
+beforeEach(()=>{vi.clearAllMocks();active.value=null;isolated.mockReturnValue(secondary);vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);host=document.createElement('div');document.body.append(host);root=createRoot(host);});
+afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();});
+it('keeps the current call transport when leaving its route',async()=>{active.value={roomCode:'ROOM0001',signalingSocket:primary};await act(async()=>root.render(<View code="ROOM0001"/>));await act(async()=>root.render(null));expect(disconnect).not.toHaveBeenCalled();});
+it('isolates another room while a call is active and returns to its existing transport',async()=>{active.value={roomCode:'ROOM0001',signalingSocket:primary};await act(async()=>root.render(<View code="ROOM0002"/>));expect(isolated).toHaveBeenCalledWith('ROOM0002');expect(last).toBe(secondary);expect(connect).toHaveBeenCalledWith(secondary);await act(async()=>root.render(<View code="ROOM0001"/>));expect(disconnect).toHaveBeenCalledWith(secondary);expect(last).toBe(primary);});

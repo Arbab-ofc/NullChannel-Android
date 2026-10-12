@@ -24,7 +24,7 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       if (['presence:heartbeat','presence:set'].includes(event) && socket.data.accountId) { next(); return; }
       if (socket.data.socialOnly) { socket.emit('socket-error',{code:'JOIN_REQUIRED',message:'Open an authorized room connection.'}); return; }
       const limits: Record<string, number> = { 'join-room': env.SOCKET_JOIN_LIMIT, 'send-message': env.SOCKET_MESSAGE_LIMIT, typing: env.SOCKET_TYPING_LIMIT, 'leave-room': 30 };
-      const calling = ['call:invite','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end','call:connected','call:reconnecting'].includes(event);
+      const calling = ['call:resume','call:invite','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end','call:connected','call:reconnecting'].includes(event);
       if (calling && !allowEvent(`${socket.data.identity}:call-packets`,env.CALL_SIGNAL_LIMIT*2)) {
         const failure = { ok: false,code: 'RATE_LIMITED',message: 'Too many call events. Please wait.' };
         if (typeof acknowledgement === 'function') acknowledgement(failure);

@@ -1,0 +1,8 @@
+import {afterEach,it,expect} from 'vitest';
+import type {Socket} from 'socket.io-client';
+import {roomVoiceCall,retainRoomCall,releaseRoomCall,activeCallSnapshot} from '../lib/active-calls';
+const created:Array<ReturnType<typeof roomVoiceCall>>=[];
+afterEach(()=>{for(const call of created.splice(0)){call.end();releaseRoomCall(call);}});
+function fixture(){const handlers=new Map<string,Set<(value:unknown)=>void>>();const socket={connected:true,on:(event:string,fn:(value:unknown)=>void)=>{const set=handlers.get(event)??new Set();set.add(fn);handlers.set(event,set);},off:(event:string,fn:(value:unknown)=>void)=>handlers.get(event)?.delete(fn),timeout:()=>({emit:(_event:string,_body:unknown,ack:(e:null,r:unknown)=>void)=>ack(null,{ok:true})})} as unknown as Socket;return{socket,emit:(event:string,value:unknown)=>handlers.get(event)?.forEach(fn=>fn(value)),handlers};}
+it('retains an active room call through route release and reuses it when returning',()=>{const f=fixture(),call=roomVoiceCall(f.socket,'CACHE001');created.push(call);retainRoomCall(call);call.attach();f.emit('call:incoming',{callId:'fixture-call',roomCode:'CACHE001'});releaseRoomCall(call);expect(activeCallSnapshot()).toBe(call);expect(roomVoiceCall(f.socket,'CACHE001')).toBe(call);expect(f.handlers.get('call:incoming')?.size).toBe(1);retainRoomCall(call);expect(call.signalingSocket).toBe(f.socket);});
+it('cleans inactive room listeners and never retains terminated calls as active',()=>{const f=fixture(),call=roomVoiceCall(f.socket,'CACHE002');created.push(call);retainRoomCall(call);call.attach();releaseRoomCall(call);expect(activeCallSnapshot()).toBeNull();expect(f.handlers.get('call:incoming')?.size).toBe(0);});

@@ -1,3 +1,4 @@
+import {emitAccountEvent} from './presence.service.js';
 import { recoverAvatarIntents } from './avatar.service.js';
 import { supabase } from '../config/supabase.js';
 import { emitMessageBurned, emitRoomExpired, emitRoomExpiredByCode, emitDirectoryUpdated } from '../sockets/emitter.js';
@@ -7,11 +8,14 @@ import { logger } from '../utils/logger.js';
 export const cleanupRoomsByIds = async (roomIds: string[]) => {
   if (!roomIds.length) return { removedRooms: 0 };
   // Database triggers durably queue media before cascade deletion.
-  const before = await supabase.from('rooms').select('id,code').in('id',roomIds);
+  const before = await supabase.from('rooms').select('id,code,room_kind').in('id',roomIds);
   if (before.error) throw before.error;
+  const registeredIds=(before.data??[]).filter(room=>room.room_kind&&room.room_kind!=='guest').map(room=>room.id);
+  const accounts=registeredIds.length?await supabase.from('nc_room_identities').select('account_id').in('room_id',registeredIds):{data:[],error:null};if(accounts.error)throw accounts.error;
   const { error, count } = await supabase.from('rooms').delete({ count: 'exact' }).in('id', roomIds);
   if (error) throw error;
   for (const room of before.data ?? []) { emitRoomExpiredByCode(room.code,{reason:'terminated-by-creator'}); emitRoomExpired(room.id,{reason:'terminated-by-creator'}); }
+  for(const id of new Set((accounts.data??[]).map(i=>i.account_id)))emitAccountEvent(id,'rooms:updated',{updated:true});
   emitDirectoryUpdated();
   return { removedRooms: count ?? 0 };
 };
@@ -45,6 +49,7 @@ export const cleanupExpiredRooms = async () => {
       emitRoomExpired(room.id, { reason: 'expired' });
     }
     if (rooms?.length) emitDirectoryUpdated();
+    const pairs=await supabase.rpc('nc_direct_pairs_sweep');if(pairs.error)throw pairs.error;
     await recoverUploadIntents();
     await recoverAvatarIntents();
     await processMediaCleanup();

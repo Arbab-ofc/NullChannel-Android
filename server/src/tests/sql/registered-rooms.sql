@@ -15,7 +15,7 @@ begin
  if exists(select 1 from account_notifications where reference_id=invite) then raise exception 'Consumed notice retained';end if;
  begin perform nc_invitation_respond(b,invite,true,'UNUSED00');raise exception 'Invitation reused';exception when others then if sqlerrm<>'INVITATION_EXPIRED' then raise;end if;end;
  j:=nc_invitation_create(a,'fixture_friend',null);invite:=(j->>'id')::uuid;
- if exists(select 1 from rooms where room_kind='direct') then raise exception 'Direct room prematurely created';end if;
+ if exists(select 1 from rooms r join nc_room_identities identity on identity.room_id=r.id where r.room_kind='direct' and identity.account_id=a) then raise exception 'Direct room prematurely created';end if;
  j:=nc_invitation_respond(b,invite,true,'TESTDIR1');
  if j->>'code'<>'TESTDIR1' then raise exception 'Direct invitation failed';end if;
  j:=nc_invitation_create(a,'fixture_friend','TESTGRP1');invite:=(j->>'id')::uuid;

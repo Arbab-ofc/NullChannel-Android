@@ -1,0 +1,8 @@
+// @vitest-environment jsdom
+import {act} from 'react';import {createRoot,type Root} from 'react-dom/client';import {beforeEach,afterEach,it,expect,vi} from 'vitest';import type {Socket} from 'socket.io-client';
+const {call}=vi.hoisted(()=>{const view={phase:'connected'};return {call:{snapshot:()=>view,subscribe:()=>()=>{},attach:vi.fn(),setRoom:vi.fn(),setVisible:vi.fn(),end:vi.fn()}};});
+vi.mock('../lib/active-calls',()=>({roomVoiceCall:()=>call,retainRoomCall:vi.fn(),releaseRoomCall:vi.fn()}));import {useVoiceCall} from '../hooks/useVoiceCall';let root:Root,host:HTMLDivElement;
+function View({ready,eligible}:{ready:boolean;eligible:boolean}){useVoiceCall({} as Socket,'ROOM0001',eligible,new Date(Date.now()+60000).toISOString(),ready);return null;}
+beforeEach(()=>{vi.clearAllMocks();vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);host=document.createElement('div');document.body.append(host);root=createRoot(host);});afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals();});
+it('does not terminate a retained call while room membership is being restored',async()=>{await act(async()=>root.render(<View ready={false} eligible={false}/>));expect(call.setRoom).not.toHaveBeenCalled();expect(call.setVisible).toHaveBeenCalledWith(false);await act(async()=>root.render(<View ready eligible/>));expect(call.setRoom).toHaveBeenCalledWith(true,expect.any(String));expect(call.end).not.toHaveBeenCalled();});
+it('applies ineligible membership only after authoritative room restoration completes',async()=>{await act(async()=>root.render(<View ready eligible={false}/>));expect(call.setRoom).toHaveBeenCalledWith(false,expect.any(String));});

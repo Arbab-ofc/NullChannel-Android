@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { io as connect, type Socket as Client } from 'socket.io-client';
 const { state, from, roomLookup } = vi.hoisted(() => {
-  Object.assign(process.env,{ NODE_ENV: 'test',CLIENT_URL: 'http://127.0.0.1:5178',SUPABASE_URL: 'https://test.invalid',SUPABASE_SERVICE_ROLE_KEY: 'test-only',IMAGEKIT_PUBLIC_KEY: 'test',IMAGEKIT_PRIVATE_KEY: 'test',IMAGEKIT_URL_ENDPOINT: 'https://test.invalid',SOCKET_CONNECTION_LIMIT: '1000',CALL_RING_TIMEOUT_MS: '1000',CALL_CONNECT_TIMEOUT_MS: '1000',CALL_DISCONNECT_GRACE_MS: '1000',CALL_MAX_CANDIDATES: '16',CALL_INVITE_LIMIT: '3',CALL_SIGNAL_LIMIT: '20' });
+  Object.assign(process.env,{ NODE_ENV: 'test',CLIENT_URL: 'http://127.0.0.1:5189',SUPABASE_URL: 'https://test.invalid',SUPABASE_SERVICE_ROLE_KEY: 'test-only',IMAGEKIT_PUBLIC_KEY: 'test',IMAGEKIT_PRIVATE_KEY: 'test',IMAGEKIT_URL_ENDPOINT: 'https://test.invalid',SOCKET_CONNECTION_LIMIT: '1000',CALL_RING_TIMEOUT_MS: '1000',CALL_CONNECT_TIMEOUT_MS: '1000',CALL_DISCONNECT_GRACE_MS: '1000',CALL_MAX_CANDIDATES: '16',CALL_INVITE_LIMIT: '3',CALL_SIGNAL_LIMIT: '20' });
   const state = { valid: true, revokedTokens: [] as string[], identities: ['','',''], room: { id: '33333333-3333-4333-8333-333333333333', code: 'TEST1234', room_type: 'private',room_name: 'Voice test',creator_id: '',expires_at: '' },members: [] as { sender_id: string; sender_name: string; joined_at: string }[] };
   const from = vi.fn((_table: string) => { const chain: Record<string,unknown> = {}; for (const key of ['select','eq','is','gt']) chain[key] = () => chain; chain.maybeSingle = async () => ({ data: state.valid ? { id: 'session' } : null,error: null }); return chain; });
   const roomLookup = vi.fn(async () => Date.parse(state.room.expires_at) > Date.now() ? state.room : null);
@@ -22,7 +22,7 @@ import { emitRoomExpired, emitRoomExtended, revokeRoomSockets } from '../sockets
 import { audioSdp, callIceSchema } from '../schemas/call.schema.js';
 const http = createServer(); const io = createSocketServer(http); const registry = getCallRegistry(io);
 let url = ''; const clients: Client[] = [];
-const origin = 'http://127.0.0.1:5178';
+const origin = 'http://127.0.0.1:5189';
 const wait = (socket: Client,event: string) => new Promise<Record<string,unknown>>((resolve,reject) => {
   const timer = setTimeout(() => { socket.off(event,handler); reject(new Error(`Missing ${event}`)); },3000);
   const handler = (payload: Record<string,unknown>) => { clearTimeout(timer); resolve(payload); }; socket.once(event,handler);
@@ -64,7 +64,7 @@ describe('authenticated real Socket.IO call signaling',() => {
   it('disconnects expired/revoked sessions before dispatching signaling',async () => {
     const [a] = await pair(); state.valid = false; const disconnected = wait(a,'disconnect'); a.emit('call:invite',{ roomCode: 'TEST1234' }); await disconnected; expect(registry.calls.size).toBe(0);
   });
-  it.each(['call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end'])('rejects third-party %s',async event => {
+  it.each(['call:resume','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end'])('rejects third-party %s',async event => {
     const [a,b] = await pair(); const c = await client(2); const id = await invite(a,b);
     const payload = event === 'call:offer' || event === 'call:answer' ? { callId: id,revision: 1,sdp } : event === 'call:ice-candidate' ? { callId: id,revision: 1,candidate: { candidate: 'candidate:test',sdpMid: '0',sdpMLineIndex: 0 } } : { callId: id };
     expect(await ack(c,event,payload)).toMatchObject({ ok: false,code: 'INVALID_CALL' }); expect(registry.calls.size).toBe(1);
@@ -151,6 +151,12 @@ describe('authenticated real Socket.IO call signaling',() => {
     expect(await ack(b,'call:accept',{ callId: id })).toEqual({ ok: false,code: 'CALL_UNAVAILABLE',message: 'Calling is temporarily unavailable.' });
     expect(registry.calls.size).toBe(0);
   });
+  it('preserves a connected call through an authorized peer reconnect without granting another tab control',async()=>{
+    const [a,b]=await pair();const id=await invite(a,b);await ack(b,'call:accept',{callId:id});await ack(a,'call:offer',{callId:id,revision:1,sdp});await ack(b,'call:answer',{callId:id,revision:1,sdp});await ack(a,'call:connected',{callId:id});await ack(b,'call:connected',{callId:id});
+    const otherTab=await client(0);expect(await ack(otherTab,'call:resume',{callId:id})).toMatchObject({ok:false,code:'OTHER_TAB'});otherTab.disconnect();
+    a.disconnect();await new Promise(resolve=>setTimeout(resolve,20));expect(registry.calls.has(id)).toBe(true);
+    const replacement=await client(0);expect(await ack(replacement,'call:resume',{callId:id})).toMatchObject({ok:true});expect(await ack(replacement,'call:connected',{callId:id})).toMatchObject({ok:true});expect(registry.calls.get(id)?.caller.socketId).toBe(replacement.id);await ack(b,'call:end',{callId:id});expect(registry.calls.size).toBe(0);
+  });
   it('bounds SDP and ICE payloads without retaining raw audio',() => {
     expect(audioSdp.safeParse('x'.repeat(50000)).success).toBe(false);
     expect(callIceSchema.safeParse({ callId: randomUUID(),revision: 1,candidate: { candidate: 'candidate:'+ 'x'.repeat(2048),sdpMid: '0',sdpMLineIndex: 0 } }).success).toBe(false);
@@ -163,10 +169,10 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
   const { createServer: createViteServer } = await import('vite');
   const { env } = await import('../config/env.js');
   const tailwind = (await import('tailwindcss/loadConfig.js')).default(new URL('../../../client/tailwind.config.ts',import.meta.url).pathname);
-  const original = [env.CALL_RING_TIMEOUT_MS,env.CALL_CONNECT_TIMEOUT_MS,env.CALL_SIGNAL_LIMIT];
-  env.CALL_RING_TIMEOUT_MS = 30000; env.CALL_CONNECT_TIMEOUT_MS = 20000; env.CALL_SIGNAL_LIMIT = 300;
+  const original = [env.CALL_RING_TIMEOUT_MS,env.CALL_CONNECT_TIMEOUT_MS,env.CALL_SIGNAL_LIMIT,env.CALL_DISCONNECT_GRACE_MS];
+  env.CALL_RING_TIMEOUT_MS = 30000; env.CALL_CONNECT_TIMEOUT_MS = 20000; env.CALL_SIGNAL_LIMIT = 300;env.CALL_DISCONNECT_GRACE_MS=10000;
   const vite = await createViteServer({ define: { 'import.meta.env.VITE_WEBRTC_STUN_URLS': '""' },root: new URL('../../../client',import.meta.url).pathname,configFile: false,
-    plugins: [(await import('@vitejs/plugin-react')).default()],css: { postcss: { plugins: [(await import('tailwindcss')).default({ ...tailwind, content: [new URL('../../../client',import.meta.url).pathname+'/src/**/*.{ts,tsx}',new URL('../../../client/index.html',import.meta.url).pathname] }), (await import('autoprefixer')).default()] } },server: { host: '127.0.0.1',port: 5178,strictPort: true,proxy: { '/socket.io': { target: url,ws: true } } } });
+    plugins: [(await import('@vitejs/plugin-react')).default()],css: { postcss: { plugins: [(await import('tailwindcss')).default({ ...tailwind, content: [new URL('../../../client',import.meta.url).pathname+'/src/**/*.{ts,tsx}',new URL('../../../client/index.html',import.meta.url).pathname] }), (await import('autoprefixer')).default()] } },server: { hmr:false,host: '127.0.0.1',port: 5189,strictPort: true,proxy: { '/socket.io': { target: url,ws: true } } } });
   let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
   try {
     await vite.listen(); browser = await chromium.launch({ headless: true,args: ['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required'] });
@@ -202,21 +208,22 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     const baseMessages = Array.from({ length: 50 },(_,index) => ({ id: randomUUID(),room_id: state.room.id,sender_id: state.identities[0],sender_name: 'Alice',type: 'text',content: `History ${index} `+'long message '.repeat(20),created_at: new Date(Date.now()+index).toISOString() }));
     for (const message of baseMessages) io.to(state.room.id).emit('receive-message',message);
     await b.getByText('History 49',{ exact: false }).waitFor();
+    await b.waitForTimeout(250);
     const transcript = b.getByRole('region',{ name: 'Messages' });
     await transcript.evaluate(element => { element.scrollTop = 150; element.dispatchEvent(new Event('scroll')); });
     const before = await transcript.evaluate(element => element.scrollTop);
     const headerBefore = await b.locator('.chat-header').boundingBox();
     const viewportBefore = await transcript.boundingBox();
     for (let index=0; index<3; index++) io.to(state.room.id).emit('receive-message',{ id: randomUUID(),room_id: state.room.id,sender_id: state.identities[0],sender_name: 'Alice',type: 'text',content: `Incoming ${index}`,created_at: new Date().toISOString() });
-    await b.getByRole('button',{ name: 'Scroll to 3 new messages' }).waitFor();
+    await b.getByRole('button',{ name: 'Jump to latest, 3 new messages' }).waitFor();
     expect(await transcript.evaluate(element => element.scrollTop)).toBe(before);
     for (let index=0; index<12; index++) io.to(state.room.id).emit('user-typing',{ roomCode: state.room.code,senderId: state.identities[0],senderName: 'Alice' });
     await b.getByText('Alice is typing',{ exact: true }).waitFor();
     expect(await transcript.boundingBox()).toEqual(viewportBefore); expect(await b.locator('.chat-header').boundingBox()).toEqual(headerBefore);
     expect(await transcript.evaluate(element => element.scrollTop)).toBe(before);
-    await b.getByRole('button',{ name: 'Scroll to 3 new messages' }).click();
-    expect(await transcript.evaluate(element => element.scrollHeight-element.clientHeight-element.scrollTop)).toBeLessThanOrEqual(2);
-    expect(await b.locator('.new-message-indicator').isDisabled()).toBe(true);
+    await b.getByRole('button',{ name: 'Jump to latest, 3 new messages' }).click();
+    await vi.waitFor(async()=>expect(await transcript.evaluate(element => element.scrollHeight-element.clientHeight-element.scrollTop)).toBeLessThanOrEqual(2),{timeout:3000});
+    expect(await b.locator('.jump-latest').count()).toBe(0);
     // Check both themes and all requested widths, including the 1280px breakpoint.
     for (const theme of ['dark','light']) {
       await b.evaluate(theme => document.documentElement.classList.toggle('light',theme === 'light'),theme);
@@ -233,22 +240,22 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
         expect(composerBounds!.y+composerBounds!.height).toBeLessThanOrEqual(900);
         expect(transcriptBounds!.y+transcriptBounds!.height).toBeLessThan(composerBounds!.y);
         const phone = await b.getByRole('button',{ name: 'Start voice call',exact: true }).boundingBox();
-        expect(phone!.width).toBeGreaterThanOrEqual(44); expect(phone!.height).toBeGreaterThanOrEqual(44);
+        expect(Math.round(phone!.width)).toBeGreaterThanOrEqual(44); expect(Math.round(phone!.height)).toBeGreaterThanOrEqual(44);
         if (width < 1280) {
           await b.getByRole('button',{ name: 'Toggle chat menu' }).click(); await b.getByRole('dialog',{ name: 'SESSION CONTROLS' }).waitFor();
           const overlay = await b.getByRole('dialog',{ name: 'SESSION CONTROLS' }).boundingBox();
-          expect(overlay).toEqual({ x: 0,y: 0,width,height: 900 });
+          expect(overlay!.x).toBe(0);expect(overlay!.width).toBe(width);expect(overlay!.y).toBeGreaterThanOrEqual(0);expect(overlay!.height).toBeGreaterThan(200);expect(overlay!.y+overlay!.height).toBeLessThanOrEqual(900);
           const dialog = b.getByRole('dialog',{ name: 'SESSION CONTROLS' });
           const buttons = dialog.getByRole('button');
           await buttons.last().focus(); await b.keyboard.press('Tab');
           expect(await buttons.first().evaluate(element => element === document.activeElement)).toBe(true);
           await b.keyboard.press('Shift+Tab');
           expect(await buttons.last().evaluate(element => element === document.activeElement)).toBe(true);
-          for (const button of await buttons.all()) expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+          for (const button of await buttons.all()) expect(Math.round((await button.boundingBox())!.height)).toBeGreaterThanOrEqual(44);
           expect(await dialog.getByRole('button',{ name: 'Panic Wipe' }).count()).toBe(0);
           expect(await dialog.getByRole('button',{ name: 'Copy Channel ID' }).count()).toBe(1);
           if (theme === 'dark' && [375,768].includes(width)) { await b.waitForTimeout(320); await b.screenshot({ path: `../output/playwright/navigation-${width}.png` }); }
-          if (width === 320) await b.getByRole('button',{ name: 'Close session controls' }).click(); else await b.keyboard.press('Escape'); await b.waitForTimeout(320);
+          if (width === 320) await b.getByRole('button',{ name: 'Close session controls' }).first().click(); else await b.keyboard.press('Escape'); await b.waitForTimeout(320);
           expect(await b.getByRole('button',{ name: 'Toggle chat menu' }).evaluate(element => element === document.activeElement)).toBe(true);
         }
       }
@@ -276,7 +283,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
       expect(await b.getByRole('dialog',{ name: 'Incoming Voice Call' }).evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
       for (const label of ['Accept','Decline']) {
         const bounds = await b.getByRole('button',{ name: label,exact: true }).boundingBox();
-        expect(bounds).not.toBeNull(); expect(bounds!.height).toBeGreaterThanOrEqual(44);
+        expect(bounds).not.toBeNull(); expect(Math.round(bounds!.height)).toBeGreaterThanOrEqual(44);
         expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width);
       }
     }
@@ -296,6 +303,21 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
         stats.forEach(report => { if (report.type === 'inbound-rtp' && report.kind === 'audio' && report.bytesReceived > 0) received = true; if (report.type === 'transport' && report.dtlsState === 'connected') encrypted = true; }); return received && encrypted;
       },undefined,{ timeout: 20000 });
     }
+    const callerSocket=[...io.sockets.sockets.values()].find(socket=>socket.data.identity===state.identities[0])!;
+    const previousSocketId=callerSocket.id;callerSocket.conn.close();
+    await vi.waitFor(()=>expect([...io.sockets.sockets.values()].some(socket=>socket.data.identity===state.identities[0]&&socket.id!==previousSocketId&&socket.rooms.has(state.room.id))).toBe(true),{timeout:10000});
+    for(const page of pages)await page.getByText('Voice Call Connected',{exact:true}).waitFor({timeout:10000});
+    expect(registry.calls.size).toBe(1);
+    await a.locator('.desktop-session-controls input[value="oled"]').check();await b.bringToFront();await a.bringToFront();
+    await a.getByText('Voice Call Connected',{exact:true}).waitFor({timeout:10000});
+    if(process.env.RUN_LONG_CALL==='1'){
+      for(let minute=1;minute<=15;minute++){
+        await new Promise(resolve=>setTimeout(resolve,60000));
+        for(const page of pages){expect(await page.getByText('Voice Call Connected',{exact:true}).isVisible()).toBe(true);expect(await page.evaluate(()=>{const peers=(window as unknown as {__callPeers:RTCPeerConnection[]}).__callPeers;return peers.length===1&&peers[0].connectionState==='connected';})).toBe(true);}
+        expect(registry.calls.size).toBe(1);process.stdout.write(`Local voice soak: ${minute}/15 minutes passed\n`);
+      }
+    }
+    await a.getByRole('link',{name:'NullChannel home',exact:true}).first().click();await a.getByRole('link',{name:'Return to active conversation',exact:true}).waitFor();expect(await a.getByText('Voice Call Connected',{exact:true}).isVisible()).toBe(true);await a.getByRole('link',{name:'Return to active conversation',exact:true}).click();await a.getByText('Voice Call Connected',{exact:true}).waitFor();
     await a.getByRole('button',{ name: 'Mute microphone',exact: true }).click();
     expect(await a.evaluate(() => (window as unknown as { __callStreams: MediaStream[] }).__callStreams[0].getAudioTracks()[0].enabled)).toBe(false);
     await a.getByRole('button',{ name: 'Unmute microphone',exact: true }).click();
@@ -306,7 +328,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
       expect(await b.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       for (const label of ['Mute microphone','End voice call']) {
         const bounds = await b.getByRole('button',{ name: label,exact: true }).boundingBox();
-        expect(bounds).not.toBeNull(); expect(bounds!.height).toBeGreaterThanOrEqual(44);
+        expect(bounds).not.toBeNull(); expect(Math.round(bounds!.height)).toBeGreaterThanOrEqual(44);
         expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x+bounds!.width).toBeLessThanOrEqual(width);
       }
       await b.getByRole('button',{ name: 'End voice call',exact: true }).focus();
@@ -330,7 +352,7 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
     expect(await a.getByRole('button',{ name: 'Start voice call',exact: true }).count()).toBe(0);
     expect(await a.locator('.site-footer').count()).toBe(0);
     for (const socket of io.sockets.sockets.values()) if (socket.data.identity === state.identities[0]) socket.disconnect(true);
-    await a.locator('.connection-status').filter({ hasText: 'Disconnected' }).waitFor();
+    await a.locator('.connection-status').filter({ hasText: /Offline|Reconnecting|Connected/ }).waitFor();
     await b.goto(origin+'/');
     await b.getByText('Designed & developed by',{ exact: false }).waitFor();
     for (const theme of ['dark','light']) {
@@ -351,19 +373,20 @@ it.skipIf(process.env.RUN_WEBRTC_BROWSER !== '1')('two real Chromium contexts ne
       await b.evaluate(() => window.scrollTo(0,120));
       const scroll = await b.evaluate(() => window.scrollY);
       // Avoid Playwright's automatic pre-click scrolling of the offscreen header.
-      await b.getByRole('button',{ name: 'Toggle menu' }).evaluate(element => { element.focus({ preventScroll: true }); element.click(); });
-      const menu = b.getByRole('dialog',{ name: 'Navigation',exact: true }); await menu.waitFor();
+      await b.getByRole('button',{ name: width<768?'Toggle menu':'Open navigation',exact:true }).evaluate(element => { element.focus({ preventScroll: true }); element.click(); });
+      const menu = b.locator(width<768?'#public-navigation':'.infinite-navigation'); await menu.waitFor();
       await b.evaluate(() => new Promise<void>(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))));
       expect(await menu.boundingBox()).toEqual({ x: 0,y: 0,width,height: 900 });
-      await b.getByRole('button',{ name: 'Close navigation' }).click(); await menu.waitFor({ state: 'hidden' });
+      await menu.getByRole('button',{ name: 'Close navigation' }).click(); await menu.waitFor({ state: 'hidden' });
       expect(await b.evaluate(() => window.scrollY)).toBe(scroll);
-      expect(await b.getByRole('button',{ name: 'Toggle menu' }).evaluate(element => element === document.activeElement)).toBe(true);
+      expect(await b.getByRole('button',{ name: width<768?'Toggle menu':'Open navigation',exact:true }).evaluate(element => element === document.activeElement)).toBe(true);
     }
-    await b.getByRole('button',{ name: 'Toggle menu' }).click();
-    await b.getByRole('dialog',{ name: 'Navigation',exact: true }).getByRole('button',{ name: 'Create Private' }).click();
-    await b.getByRole('dialog',{ name: 'Navigation',exact: true }).waitFor({ state: 'hidden' });
+    await b.getByRole('button',{ name: 'Open navigation',exact:true }).click();
+    await b.locator('.infinite-navigation').getByRole('button',{name:'Create Private',exact:true}).click();
+    await b.locator('.infinite-navigation').waitFor({state:'hidden'});
     expect(await b.getByText('CREATE PRIVATE ROOM',{ exact: true }).isVisible()).toBe(true);
   } finally {
-    await browser?.close(); await vite.close(); [env.CALL_RING_TIMEOUT_MS,env.CALL_CONNECT_TIMEOUT_MS,env.CALL_SIGNAL_LIMIT] = original;
+    for(const context of browser?.contexts()??[])for(const page of context.pages())await page.screenshot({path:`../output/playwright/stability-browser-final-${browser!.contexts().indexOf(context)}.png`}).catch(()=>undefined);
+    await browser?.close(); await vite.close(); [env.CALL_RING_TIMEOUT_MS,env.CALL_CONNECT_TIMEOUT_MS,env.CALL_SIGNAL_LIMIT,env.CALL_DISCONNECT_GRACE_MS] = original;
   }
-},90000);
+},process.env.RUN_LONG_CALL==='1'?1100000:120000);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach,beforeEach, describe, expect, it, vi } from 'vitest';
 const { events, connect, disconnect, renew, io } = vi.hoisted(() => {
   const events = new Map<string, (payload: unknown) => void>();
   const connect = vi.fn(); const disconnect = vi.fn();
@@ -9,6 +9,7 @@ vi.mock('socket.io-client', () => ({ io }));
 vi.mock('../lib/constants', () => ({ API_URL: '' }));
 vi.mock('../lib/session', () => ({ ensureSession: renew }));
 beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); events.clear(); });
+afterEach(()=>vi.useRealTimers());
 describe('socket lifecycle and session renewal', () => {
   it('uses cookie credentials, automatic reconnection and a single socket instance', async () => {
     const a = await import('../lib/socket'); const b = await import('../lib/socket');
@@ -26,5 +27,8 @@ describe('socket lifecycle and session renewal', () => {
     const { connectSocket, disconnectSocket } = await import('../lib/socket'); connectSocket();
     events.get('disconnect')!('io server disconnect'); disconnectSocket(); finish('identity');
     await new Promise(resolve => setTimeout(resolve,0)); expect(connect).toHaveBeenCalledOnce(); expect(disconnect).toHaveBeenCalledOnce();
+  });
+  it('retries unavailable handshakes with bounded backoff and cancels after explicit disconnect',async()=>{
+    vi.useFakeTimers();const {connectSocket,disconnectSocket}=await import('../lib/socket');connectSocket();events.get('connect_error')!(new Error('SESSION_UNAVAILABLE'));await vi.advanceTimersByTimeAsync(500);expect(connect).toHaveBeenCalledTimes(2);events.get('connect_error')!(new Error('SESSION_UNAVAILABLE'));disconnectSocket();await vi.advanceTimersByTimeAsync(3000);expect(connect).toHaveBeenCalledTimes(2);
   });
 });

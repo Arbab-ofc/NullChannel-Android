@@ -39,6 +39,7 @@ export class AudioPeer {
   private deviceListener = () => { if (this.audio?.srcObject) void this.play(); };
   constructor(private caller: boolean, private callbacks: AudioCallbacks,
     private config: RTCConfiguration = iceConfiguration(), private timeouts = CALL_DEFAULTS) {}
+  get connected(){return this.pc?.connectionState==='connected';}
   start() {
     if (this.ready) return this.ready;
     this.ready = this.initialize(); return this.ready;
@@ -71,7 +72,7 @@ export class AudioPeer {
       };
       pc.onconnectionstatechange = () => this.connectionChanged();
       pc.oniceconnectionstatechange = () => {
-        if (pc.iceConnectionState === 'failed') this.fail(NETWORK_FAILURE);
+        if (pc.iceConnectionState === 'failed') this.reconnecting();
         else if (pc.iceConnectionState === 'disconnected') this.reconnecting();
       };
       this.deadline(this.timeouts.connectMs);
@@ -91,7 +92,7 @@ export class AudioPeer {
       if (this.timer) clearTimeout(this.timer); this.timer = null;
       this.callbacks.state('connected');
     } else if (state === 'disconnected') this.reconnecting();
-    else if (state === 'failed') this.fail(NETWORK_FAILURE);
+    else if (state === 'failed') this.reconnecting();
   }
   private recovering = false;
   recover() { this.reconnecting(false); }

@@ -1,5 +1,7 @@
-import {Children,useCallback,useEffect,useId,useRef,useState,type ReactNode} from 'react';
-import {ChevronDown} from 'lucide-react';
+import {Children,cloneElement,isValidElement,useCallback,useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {useOptionalAccount} from '../../hooks/useAccount';
+import {NavigationOverlay} from '../common/NavigationOverlay';
+import {ChevronDown,Menu} from 'lucide-react';
 import '../../styles/desktop-header.css';
 import '../../styles/infinite-navigation.css';
 import {ExperimentalMenuButton} from './ExperimentalMenuButton';
@@ -11,7 +13,8 @@ export function FloatingHeader({children,className='',panelContent}:{children:Re
  const [desktop,setDesktop]=useState(()=>window.innerWidth>=768);
  const [open,setOpen]=useState(false);const id=useId();const close=useCallback(()=>setOpen(false),[]);
  useEffect(()=>{const update=()=>{setDesktop(window.innerWidth>=768);if(window.innerWidth<768)setOpen(false);};window.addEventListener('resize',update);return()=>window.removeEventListener('resize',update);},[]);
- const items=Children.toArray(children);
+ const profile=useOptionalAccount()?.profile;
+ const items=Children.toArray(children);if(isValidElement<{to?:string;'aria-label'?:string}>(items[0])&&items[0].props['aria-label']==='NullChannel home')items[0]=cloneElement(items[0],{to:profile?'/dashboard':'/'});
  useEffect(()=>{
   const outside=(event:Event)=>{
    if(window.innerWidth<768)return;
@@ -25,7 +28,7 @@ export function FloatingHeader({children,className='',panelContent}:{children:Re
   if(window.innerWidth<768||event.key!=='Escape')return;
   const details=(event.target as Element).closest<HTMLDetailsElement>('details[open]');
   if(details&&ref.current?.contains(details)){event.preventDefault();event.stopPropagation();details.open=false;details.querySelector('summary')?.focus({preventScroll:true});}
- }}>{desktop?<>{items[0]}<ExperimentalMenuButton open={open} controls={id} onClick={()=>setOpen(value=>!value)}/><InfiniteNavigationPanel id={id} open={open} close={close}>{panelContent??items.slice(1)}</InfiniteNavigationPanel></>:children}</header>;
+ }}>{desktop?<>{items[0]}<ExperimentalMenuButton open={open} controls={id} onClick={()=>setOpen(value=>!value)}/><InfiniteNavigationPanel id={id} open={open} close={close}>{panelContent??items.slice(1)}</InfiniteNavigationPanel></>:className.includes('command-header--minimal')?<>{items[0]}<button className="nc-button" aria-label="Open navigation" aria-expanded={open} aria-controls={id} onClick={()=>setOpen(true)}><Menu aria-hidden="true"/></button><NavigationOverlay id={id} title="Your navigation" open={open} close={close} desktopBreakpoint={768}>{panelContent??items.slice(1)}</NavigationOverlay></>:items}</header>;
 }
 export function HeaderOverflow({children,active=false}:{children:ReactNode;active?:boolean}) {
  const id=useId();

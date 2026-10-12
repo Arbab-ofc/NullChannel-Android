@@ -1,3 +1,4 @@
+vi.mock('../services/presence.service.js',()=>({emitAccountEvent:vi.fn()}));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { rpc, from, update, remove, deleteMedia, expired } = vi.hoisted(() => {
   const update = vi.fn(); const remove = vi.fn();
@@ -26,10 +27,12 @@ describe('durable media and lifecycle cleanup', () => {
   it('fails closed if queue claiming or room deletion fails', async () => {
     rpc.mockResolvedValue({ data: null, error: new Error('database failed') });
     await expect(processMediaCleanup()).rejects.toThrow('database failed'); expect(deleteMedia).not.toHaveBeenCalled();
-    from.mockReturnValueOnce({ select: vi.fn(() => ({ in: vi.fn(async () => ({ data: [{ id: 'room',code: 'TESTROOM' }],error: null })) })) } as never);
+    from.mockReturnValueOnce({ select: vi.fn(() => ({ in: vi.fn(async () => ({ data: [{ id: 'room',code: 'TESTROOM',room_kind:'direct' }],error: null })) })) } as never);
+    from.mockReturnValueOnce({ select:vi.fn(()=>({in:vi.fn(async()=>({data:[],error:null}))}))} as never);
     from.mockReturnValueOnce({ delete: vi.fn(() => ({ in: vi.fn(async () => ({ error: new Error('delete failed') })) })) } as never);
     await expect(cleanupRoomsByIds(['room'])).rejects.toThrow('delete failed');
   });
+  it('keeps guest destruction independent of registered identity lookups',async()=>{from.mockReturnValueOnce({select:vi.fn(()=>({in:vi.fn(async()=>({data:[{id:'guest',code:'TESTROOM',room_kind:'guest'}],error:null}))}))} as never);await cleanupRoomsByIds(['guest']);expect(from.mock.calls.some(([table])=>table==='nc_room_identities')).toBe(false);expect(expired).toHaveBeenCalled();});
   it('prevents overlapping runs and resumes after a failed run', async () => {
     let release!: (value: unknown) => void;
     rpc.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));

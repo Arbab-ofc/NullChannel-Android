@@ -5,7 +5,7 @@ import {createRoot,type Root} from 'react-dom/client';
 import {MemoryRouter} from 'react-router-dom';
 import {SettingsPage} from '../pages/AccountPages';
 const {get,post,refresh}=vi.hoisted(()=>({get:vi.fn(),post:vi.fn(),refresh:vi.fn()}));
-vi.mock('../hooks/useAccount',()=>({useAccount:()=>({profile:{username:'deleting',deletion_pending:true},refresh})}));
+vi.mock('../hooks/useAccount',()=>({useOptionalAccount:()=>({profile:null}),useAccount:()=>({profile:{username:'deleting',deletion_pending:true},refresh})}));
 vi.mock('../lib/account',()=>({accountApi:{get,post},accountError:()=> 'Deletion failed.'}));
 vi.mock('../lib/account-socket',()=>({accountSocket:{on:vi.fn(),off:vi.fn()}}));
 let root:Root;let container:HTMLDivElement;

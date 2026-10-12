@@ -1,3 +1,4 @@
+import {PersistentCallTray} from './components/call/PersistentCallTray';
 import { LoadingSignal } from './components/common/LoadingSignal';
 import { RoomCreatedFeedback } from './components/immersive/RoomCreatedFeedback';
 import { PageTransition } from './components/common/PageTransition';
@@ -51,5 +52,5 @@ export default function App() {
     </Route>
     <Route path="/404" element={<NotFoundPage />} />
     <Route path="*" element={<Navigate to="/404" replace />} />
-  </Routes></PageTransition></Suspense></ErrorBoundary><RoomCreatedFeedback/>{!location.pathname.startsWith('/chat/') && <Footer />}</AccountProvider>;
+  </Routes></PageTransition></Suspense></ErrorBoundary><RoomCreatedFeedback/><PersistentCallTray/>{!location.pathname.startsWith('/chat/') && <Footer />}</AccountProvider>;
 }

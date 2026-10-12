@@ -1,3 +1,8 @@
+import { EmptyState } from '../components/common/EmptyState';
+import { Modal } from '../components/common/Modal';
+import { Brand } from '../components/common/Brand';
+import { ReactionIcon, reactionName, reactions } from '../components/chat/ReactionIcon';
+import '../styles/chat-redesign.css';
 import { ViewOnceMedia } from '../components/chat/ViewOnceMedia';
 import { resolveMediaUrl, messageDeadline } from '../lib/temporary-media';
 import { accountSocket } from '../lib/account-socket';
@@ -34,7 +39,7 @@ type Participant = { sender_id: string; sender_name: string; joined_at: string; 
 type RoomCloseReason = 'expired' | 'terminated-by-creator';
 
 const VOICE_MAX_MS = 2 * 60 * 1000;
-const REACTION_EMOJIS = ['👍', '😂', '🔥', '❤️', '👀'];
+const REACTION_EMOJIS = reactions.map(reaction=>reaction.value);
 
 export default function ChatPage() {
   const { code = '' } = useParams();
@@ -51,6 +56,7 @@ export default function ChatPage() {
     accountSocket.on('identity:consent',changed); return () => {accountSocket.off('identity:consent',changed);};
   },[code]);
   const socket = useSocket(code);
+  const composerRef=useRef<HTMLTextAreaElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState('');
@@ -854,6 +860,13 @@ export default function ChatPage() {
     },Math.max(0,earliest-Date.now())+10);return()=>window.clearTimeout(timer);
   },[messages]);
 
+  useEffect(()=>{
+    const input=composerRef.current;if(!input)return;
+    input.style.height='auto';
+    const limit=window.matchMedia('(max-height: 500px)').matches?72:120;
+    input.style.height=`${Math.min(limit,Math.max(44,input.scrollHeight))}px`;
+  },[text]);
+
   const typingNames = Object.values(typingUsers);
   const typingLabel = typingNames.length > 1 ? `${typingNames.slice(0, 2).join(', ')} are typing` : `${typingNames[0] ?? 'Someone'} is typing`;
   const recordingTime = `${Math.floor(recordingSeconds / 60).toString().padStart(2, '0')}:${(recordingSeconds % 60).toString().padStart(2, '0')}`;
@@ -900,13 +913,15 @@ export default function ChatPage() {
   </main>;
 
   return <main style={viewport} className="chat-shell bg-bg">
-    {!senderName && <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+    {!senderName && <Modal titleId="chat-name-title" close={()=>nav('/')}>
       <div className="neo-panel w-full max-w-md p-6">
         <p className="code-font text-xs tracking-[0.2em] text-cyan">ENTER DISPLAY NAME</p>
-        <h3 className="mt-2 text-xl font-bold uppercase">Name required to enter this room</h3>
+        <h3 id="chat-name-title" className="mt-2 text-xl font-bold">What should we call you?</h3>
         <input
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
+          aria-label="Your name"
+          autoFocus
           placeholder="Your name"
           className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3"
           maxLength={24}
@@ -925,15 +940,16 @@ export default function ChatPage() {
           {joinBusy ? <LoadingSignal label="Joining" /> : 'Continue'}
         </Button>
       </div>
-    </div>}
+    </Modal>}
     {extendModalOpen && room.creator_id === senderId && (
-      <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+      <Modal titleId="chat-extend-title" close={()=>{if(!extendBusy)setExtendModalOpen(false);}}>
         <div className="neo-panel w-full max-w-sm p-5">
           <p className="code-font text-xs tracking-[0.2em] text-cyan">EXTEND EXPIRY</p>
-          <h3 className="mt-2 text-xl font-bold uppercase">Custom Duration</h3>
+          <h3 id="chat-extend-title" className="mt-2 text-xl font-bold">A little more time.</h3>
           <input
             value={extendMinutes}
             onChange={(e) => setExtendMinutes(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            aria-label="Extension in minutes"
             placeholder="Minutes"
             className="mt-4 h-11 w-full border-2 border-accent bg-bg px-3 text-sm"
             inputMode="numeric"
@@ -952,14 +968,14 @@ export default function ChatPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </Modal>
     )}
     <section className="chat-workspace">
       <header className="chat-header neo-panel shrink-0 p-2 sm:p-3">
         <div className="chat-header__summary">
           <div className="chat-header__identity min-w-0">
             <p className="code-font hidden text-xs tracking-[0.2em] text-cyan sm:block">NULLCHANNEL / SESSION ACTIVE</p>
-            <p className="mt-1 truncate text-sm font-semibold uppercase" title={room.room_name}>{room.room_name}</p>
+            <p className="mt-1 truncate text-sm font-semibold" title={room.room_name}>{room.room_name}</p>
             <p className="code-font mt-1 text-[10px] tracking-widest sm:text-sm">CHANNEL ID: {room.code}</p>
           </div>
           <div className="chat-header__actions">
@@ -997,7 +1013,7 @@ export default function ChatPage() {
           <section className="command-group"><h3>Navigation</h3><div><Button onClick={() => { closeMenu(); nav('/'); }}><House className="mr-2 inline h-4 w-4" />Home</Button></div></section>
           {room.creator_id === senderId && <section className="command-group command-group--danger"><h3>Danger Zone</h3><div>
               {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={panicWipeRoom} disabled={wipeBusy}><Siren className="mr-2 inline h-4 w-4" />{wipeBusy ? <LoadingSignal label="Wiping" /> : 'Panic Wipe'}</Button>}
-              {room.creator_id === senderId && <Button className="border-red-400 text-red-300" onClick={terminateRoom} disabled={terminateBusy}><Power className="mr-2 inline h-4 w-4" />{terminateBusy ? <LoadingSignal label="Terminating" /> : 'Terminate'}</Button>}
+              {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={terminateRoom} disabled={terminateBusy}><Power className="mr-2 inline h-4 w-4" />{terminateBusy ? <LoadingSignal label="Terminating" /> : 'Terminate'}</Button>}
             </div></section>}
         </CommandCenter>
       </header>
@@ -1028,7 +1044,7 @@ export default function ChatPage() {
           </div>
         )}
         {!!joinError && (
-          <div className="border-2 border-red-400 bg-panel px-3 py-2 text-xs uppercase tracking-wider text-red-300">
+          <div className="border-2 border-punch bg-panel px-3 py-2 text-xs uppercase tracking-wider text-punch">
             {joinError}
           </div>
         )}
@@ -1037,7 +1053,7 @@ export default function ChatPage() {
             {n.text}
           </div>
         ))}
-        {messages.length === 0 && <div className="border-2 border-dashed border-accent/60 p-5 text-sm text-muted">No transmissions yet. Send the first message.</div>}
+        {messages.length === 0 && <EmptyState title="No transmissions yet." description="Send the first message. This conversation is yours to start."/>}
         {room.room_kind && room.room_kind !== 'guest' && <details className="border border-accent p-3 my-3"><summary>Report a participant</summary><p className="text-sm text-muted">Reports store a reason and account references for 7 days. No message bodies or attachments are retained.</p><form className="flex flex-wrap gap-2 mt-3" onSubmit={event => {event.preventDefault();const data=new FormData(event.currentTarget);void accountApi.post(`/registered/rooms/${room.code}/report`,{senderId:data.get('senderId'),reason:data.get('reason')}).then(()=>setConsentStatus('Report submitted. No conversation evidence was stored.')).catch(error=>setConsentStatus(accountError(error)));}}><label>Participant<select required name="senderId" className="block bg-panel border border-accent p-2"><option value="">Choose participant</option>{participants.filter(p=>p.sender_id!==senderId).map(p=><option key={p.sender_id} value={p.sender_id}>{p.sender_name}</option>)}</select></label><label>Reason<select name="reason" className="block bg-panel border border-accent p-2"><option value="spam">Spam</option><option value="harassment">Harassment</option><option value="unsafe_content">Unsafe content</option><option value="other">Other</option></select></label><Button type="submit">Submit report</Button></form><p role="status">{room.room_kind!=='match'&&consentStatus}</p></details>}
         {['group','public'].includes(room.room_kind ?? '') && <GroupTools code={room.code} selfSenderId={senderId} role={room.self_role ?? 'member'} participants={participants} socket={socket} />}
         {room.room_kind === 'match' && <section className="border border-accent p-3 my-3" aria-label="Anonymous connection choices">
@@ -1053,7 +1069,7 @@ export default function ChatPage() {
           <Button onClick={() => { void accountApi.post(`/registered/rooms/${room.code}/terminate`).then(() => nav('/match')).catch(error => setConsentStatus(accountError(error))); }}>Skip &amp; search again</Button></div>
           <p role="status" className="text-sm mt-2">{consentStatus}</p>
         </section>}
-        {messages.map((m, i) => <article data-message-id={m.id} key={m.id ?? i} className={`group relative max-w-[94%] border-2 p-2.5 text-sm shadow-panel sm:max-w-[82%] lg:max-w-[70%] ${m.deleted ? 'mx-auto border-punch/70 bg-panel text-muted' : m.sender_id === senderId ? 'ml-auto border-cyan bg-cyan/10' : 'border-accent bg-accent/10'}`}>
+        {messages.map((m, i) => <article data-message-id={m.id} data-grouped={i > 0 && !m.deleted && !messages[i-1].deleted && messages[i-1].sender_id === m.sender_id && Math.abs(Date.parse(m.created_at ?? '') - Date.parse(messages[i-1].created_at ?? '')) < 300000} key={m.id ?? i} className={`chat-message ${m.sender_id === senderId ? 'chat-message--self' : ''} ${m.deleted ? 'chat-message--deleted' : ''} group relative max-w-[94%] border-2 p-2.5 text-sm shadow-panel sm:max-w-[82%] lg:max-w-[70%] ${m.deleted ? 'mx-auto border-punch/70 bg-panel text-muted' : m.sender_id === senderId ? 'ml-auto border-cyan bg-cyan/10' : 'border-accent bg-accent/10'}`}>
           <div className="message-row-head mb-1">
             <p className="message-sender-label text-[10px] uppercase tracking-wider text-muted">{m.deleted ? 'Message removed' : m.sender_id === senderId ? 'You' : (m.sender_name ?? 'Member')}</p>
             {!m.deleted && m.id && (
@@ -1188,15 +1204,17 @@ export default function ChatPage() {
                     className={`message-reaction ${reactedByMe ? 'message-reaction--mine' : ''}`}
                     onClick={() => toggleReaction(m, reaction.emoji)}
                     disabled={!isJoined || !!reactionBusyIds[`${m.id}:${reaction.emoji}`]}
+                    aria-label={`${reactionName(reaction.emoji)}, ${reaction.count} reactions`}
                     title={reaction.senders.map((sender) => sender.sender_name).join(', ')}
                   >
-                    <span>{reaction.emoji}</span>
+                    <ReactionIcon value={reaction.emoji}/>
                     <span>{reaction.count}</span>
                   </button>
                 );
               })}
             </div>
           )}
+          {m.created_at && <time className="message-time" dateTime={m.created_at}>{new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</time>}
         </article>)}
         </div>
       </section>
@@ -1223,10 +1241,10 @@ export default function ChatPage() {
               className="reaction-picker-button"
               onClick={() => toggleReaction(reactionTarget, emoji)}
               disabled={!!reactionBusyIds[`${reactionTarget.id}:${emoji}`]}
-              aria-label={`React ${emoji}`}
+              aria-label={`React ${reactionName(emoji)}`}
               type="button"
             >
-              {emoji}
+              <ReactionIcon value={emoji}/>
             </button>
           ))}
         </div>
@@ -1250,6 +1268,8 @@ export default function ChatPage() {
           </div>
         )}
         <textarea
+          ref={composerRef}
+          aria-label="Message"
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
           className="min-h-10 w-full resize-none border-2 border-accent bg-bg px-3 py-2 text-sm text-text outline-none focus:border-cyan disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-14"
@@ -1278,19 +1298,21 @@ export default function ChatPage() {
             onClick={() => setBurnAfterReadMode((value) => !value)}
             disabled={!isJoined || recordingVoice}
             type="button"
+            aria-label="Burn after reading"
             title={burnAfterReadMode ? 'Destroy 60 seconds after seen' : 'Burn mode off'}
             aria-pressed={burnAfterReadMode}
           >
             <Flame className="h-4 w-4" />
-            <span className="composer-label">{burnAfterReadMode ? '[BURN]' : '[KEEP]'}</span>
+            <span className="composer-label">{burnAfterReadMode ? 'Burn on' : 'Burn off'}</span>
           </button>
           <label className={`composer-action-button composer-action-button--image ${uploadingImage || !isJoined || recordingVoice ? 'composer-control-disabled' : ''} ${uploadingImage ? 'cursor-wait opacity-70' : isJoined && !recordingVoice ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
             <ImagePlus className="h-4 w-4" />
-            <span className="composer-label">{uploadingImage ? '[UP]' : '[IMG]'}</span>
+            <span className="composer-label">{uploadingImage ? 'Uploading' : 'Image'}</span>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="hidden"
+              className="sr-only"
+              aria-label="Attach image"
               disabled={uploadingImage || !isJoined || recordingVoice}
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -1301,11 +1323,12 @@ export default function ChatPage() {
           </label>
           <label className={`composer-action-button composer-action-button--file ${uploadingFile || !isJoined || recordingVoice ? 'composer-control-disabled' : ''} ${uploadingFile ? 'cursor-wait opacity-70' : isJoined && !recordingVoice ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
             <Paperclip className="h-4 w-4" />
-            <span className="composer-label">{uploadingFile ? '[FILE...]' : '[FILE]'}</span>
+            <span className="composer-label">{uploadingFile ? 'Uploading' : 'File'}</span>
             <input
               type="file"
               accept=".pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,text/plain,text/csv,application/zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-              className="hidden"
+              className="sr-only"
+              aria-label="Attach file"
               disabled={uploadingFile || !isJoined || recordingVoice}
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -1321,11 +1344,11 @@ export default function ChatPage() {
             disabled={!isJoined || uploadingVoice || callIsActive(voiceView.phase)}
           >
             {recordingVoice ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            <span className="composer-label">{recordingVoice ? '[STOP]' : uploadingVoice ? '[VOICE...]' : '[MIC]'}</span>
+            <span className="composer-label">{recordingVoice ? 'Stop' : uploadingVoice ? 'Uploading' : 'Voice'}</span>
           </button>
-          <Button className="composer-send-button" onClick={send} disabled={!isJoined || recordingVoice}>
+          <Button className="composer-send-button" aria-label="Send message" onClick={send} disabled={!isJoined || recordingVoice || !text.trim()}>
             <Send className="h-4 w-4" />
-            <span className="composer-label">[SEND]</span>
+            <span className="composer-label">Send</span>
           </Button>
         </div>
       </div>
@@ -1333,7 +1356,7 @@ export default function ChatPage() {
     </section>
 
     <aside className="chat-context neo-panel hidden min-h-0 min-w-0 overflow-y-auto p-3 xl:block">
-        <div className="desktop-session-controls">
+        <div className="desktop-session-controls"><a href="/" aria-label="NullChannel home"><Brand/></a><p className="nc-eyebrow">Session controls</p>
           {room.creator_id !== senderId && (
             <Button className={!isJoined ? 'bg-accent text-bg' : ''} onClick={isJoined ? leaveRoom : () => joinCurrentRoom()} disabled={(joinBusy && !isJoined) || leaveBusy}>
               <DoorOpen className="mr-2 inline h-4 w-4" />
@@ -1356,7 +1379,7 @@ export default function ChatPage() {
             </Button>
           )}
           {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={panicWipeRoom} disabled={wipeBusy}><Siren className="mr-2 inline h-4 w-4" />{wipeBusy ? <LoadingSignal label="Wiping" /> : 'Panic Wipe'}</Button>}
-          {room.creator_id === senderId && <Button className="border-red-400 text-red-300" onClick={terminateRoom} disabled={terminateBusy}><Power className="mr-2 inline h-4 w-4" />{terminateBusy ? <LoadingSignal label="Terminating" /> : 'Terminate'}</Button>}
+          {room.creator_id === senderId && <Button className="border-punch text-punch" onClick={terminateRoom} disabled={terminateBusy}><Power className="mr-2 inline h-4 w-4" />{terminateBusy ? <LoadingSignal label="Terminating" /> : 'Terminate'}</Button>}
         </div>
       <div className="mb-5 border-b-2 border-accent/40 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

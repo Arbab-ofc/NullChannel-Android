@@ -1,0 +1,4 @@
+import type { ReactNode } from 'react';
+export function EmptyState({title,description,children}:{title:string;description?:string;children?:ReactNode}) {
+  return <div className="nc-empty"><svg viewBox="0 0 120 100" width="96" height="80" fill="none" aria-hidden="true"><path d="M24 23h55a12 12 0 0 1 12 12v26a12 12 0 0 1-12 12H44L28 84V73h-4a12 12 0 0 1-12-12V35a12 12 0 0 1 12-12Z" fill="currentColor" fillOpacity=".08" stroke="currentColor"/><path d="M39 38h36M39 48h25" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="m99 11 3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" fill="currentColor"/><circle cx="99" cy="80" r="5" stroke="currentColor" strokeDasharray="2 3"/></svg><div><p className="nc-empty__title">{title}</p>{description&&<p className="nc-empty__description">{description}</p>}{children}</div></div>;
+}

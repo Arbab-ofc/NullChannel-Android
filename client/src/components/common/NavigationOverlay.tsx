@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useVisibleViewport } from '../../hooks/useVisibleViewport';
 
-export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false }: {
-  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean;
+export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false, desktopBreakpoint = 1280 }: {
+  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean; desktopBreakpoint?: number;
 }) => {
   const dialog = useRef<HTMLDialogElement>(null);
   const restore = useRef<((focus: boolean) => void) | null>(null);
@@ -34,10 +34,10 @@ export const NavigationOverlay = ({ id, title, code, open, close, children, imme
       if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) finish();
       else timer = setTimeout(finish, 300);
     }
-    const resize = () => { if (open && window.innerWidth >= 1280) close(); };
+    const resize = () => { if (open && window.innerWidth >= desktopBreakpoint) close(); };
     window.addEventListener('resize', resize);
     return () => { clearTimeout(timer); window.removeEventListener('resize', resize); };
-  }, [open, close, immediate]);
+  }, [open, close, immediate, desktopBreakpoint]);
   useEffect(() => {
     const element = dialog.current!;
     return () => { if (element.open) element.close(); restore.current?.(true); };

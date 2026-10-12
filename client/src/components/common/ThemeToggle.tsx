@@ -6,9 +6,9 @@ export const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <Button onClick={toggleTheme} aria-label="Toggle theme">
-      {theme === 'dark' ? <Sun className="mr-2 inline h-4 w-4" /> : <Moon className="mr-2 inline h-4 w-4" />}
-      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+    <Button className="theme-toggle" variant="ghost" onClick={toggleTheme} aria-label="Toggle theme" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+      {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+      <span className="sr-only">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
     </Button>
   );
 };

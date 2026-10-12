@@ -1,4 +1,5 @@
-import { AlertCircle, ArrowUpRight, LockKeyhole, Plus, RefreshCw, UsersRound } from 'lucide-react';
+import { RoomCard } from './RoomCard';
+import { AlertCircle, LockKeyhole, Plus, RefreshCw, UsersRound } from 'lucide-react';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
 import { Skeleton } from '../common/Skeleton';
@@ -41,7 +42,7 @@ export function ActiveRoomsSection({ rooms, loading, error, refresh, openRoom, c
       {(!error || loading) && <div className="spaces-grid">
         {categories.map(({kind,title,description,Icon}) => {
           // Keep the existing six-entry preview while counting the full response.
-          const categoryRooms = rooms.filter(room => (room.room_type ?? 'private') === kind);
+          const categoryRooms = rooms.filter((room,index)=>rooms.findIndex(candidate=>candidate.code===room.code)===index).filter(room => (room.room_type ?? 'private') === kind);
           return <section key={kind} className={`space-category space-category--${kind}`} aria-labelledby={`spaces-${kind}-heading`}>
             <header className="space-category__header">
               <span className="space-category__icon"><Icon aria-hidden="true"/></span>
@@ -51,10 +52,7 @@ export function ActiveRoomsSection({ rooms, loading, error, refresh, openRoom, c
             {loading ? <Skeleton kind="rooms" label={`Loading ${title.toLowerCase()}`}/> : categoryRooms.length === 0 ?
               <EmptyState title="No rooms yet" description="Create a space and start a conversation."><Button className="space-create" onClick={() => createRoom(kind)}><Plus aria-hidden="true"/>Create {kind === 'private' ? 'private room' : 'group room'}</Button></EmptyState> :
               <ul className="space-room-list">{categoryRooms.slice(0,6).map(room => <li key={room.code}>
-                <button type="button" className="space-room" onClick={() => openRoom(room.code)}>
-                  <span className="space-room__identity"><span className="space-room__name">{room.room_name}</span><span className="space-room__code code-font">{room.code}</span></span>
-                  <ArrowUpRight aria-hidden="true"/>
-                </button>
+                <RoomCard room={room} open={openRoom}/>
               </li>)}</ul>}
             {available && categoryRooms.length > 6 && <p className="space-category__limit">Showing 6 of {categoryRooms.length} rooms</p>}
           </section>;

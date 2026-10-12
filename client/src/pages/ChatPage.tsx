@@ -1,3 +1,6 @@
+import { roomAtmosphere } from '../lib/room-presentation';
+import { CopyButton } from '../components/common/CopyButton';
+import { ToggleSwitch } from '../components/common/ToggleSwitch';
 import { ResponsiveActions } from '../components/mobile/ResponsiveActions';
 import { Skeleton } from '../components/common/Skeleton';
 import { AttachmentPreview, attachmentError, type PendingAttachment } from '../components/chat/AttachmentPreview';
@@ -17,7 +20,7 @@ import { accountApi, accountError } from '../lib/account';
 import { useAccount } from '../hooks/useAccount';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Copy, Link2, Radio, DoorOpen, Power, Rows2, ImagePlus, Menu, X, House, Trash2, Mic, Square, Pencil, Send, TimerReset, Reply, SmilePlus, MoreVertical, Paperclip, FileText, Download, Pin, PinOff, Images, ExternalLink, Siren, Flame } from 'lucide-react';
+import { Radio, DoorOpen, Power, Rows2, ImagePlus, Menu, X, House, Trash2, Mic, Square, Pencil, Send, TimerReset, Reply, SmilePlus, MoreVertical, Paperclip, FileText, Download, Pin, PinOff, Images, ExternalLink, Siren, Flame } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { mergeHistory } from '../lib/messages';
 import { api } from '../lib/api';
@@ -38,7 +41,7 @@ type ReactionSummary = { emoji: string; count: number; senders: Array<{ sender_i
 type MessageType = 'text'|'image'|'voice'|'file';
 type ReplyPreview = { id: string; sender_id: string; sender_name?: string; content?: string; type: MessageType; file_url?: string; file_name?: string };
 type Msg = { id?: string; room_id?: string; sender_id: string; sender_name?: string; content?: string; type: MessageType; file_url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; reply_to_message_id?: string | null; reply_to?: ReplyPreview | null; reactions?: ReactionSummary[]; burn_after_read?: boolean; burn_expires_at?:string|null;ttl_seconds?:number|null;message_expires_at?:string|null;view_once?:boolean;view_consumed_at?:string|null; created_at?: string; deleted?: boolean; deleted_by?: string; deleted_by_name?: string; edited?: boolean };
-type Room = { id: string; code: string; creator_id: string; room_type: 'private' | 'group'; room_name: string; expires_at: string; expiry_extended?: boolean; pinned_message_id?: string | null; room_kind?: string; self_sender_id?: string; self_sender_name?: string; self_role?: 'owner'|'moderator'|'member' };
+type Room = { id: string; code: string; creator_id: string; room_type: 'private' | 'group'; room_name: string; expires_at: string; created_at?:string; expiry_extended?: boolean; pinned_message_id?: string | null; room_kind?: string; self_sender_id?: string; self_sender_name?: string; self_role?: 'owner'|'moderator'|'member' };
 type SystemNotice = { id: string; text: string };
 type TypingPayload = { roomCode?: string; senderId?: string; senderName?: string };
 type Participant = { sender_id: string; sender_name: string; joined_at: string; online?: boolean };
@@ -665,15 +668,6 @@ export default function ChatPage() {
     toastTimeout.current = window.setTimeout(() => setToast(''), 1800);
   };
 
-  const copyToClipboard = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      showToast(label);
-    } catch {
-      showToast('Clipboard unavailable');
-    }
-  };
-
   const deleteMessage = async (messageId?: string) => {
     if (!room || !messageId || deletingMessageIds[messageId]) return;
     setDeletingMessageIds((p) => ({ ...p, [messageId]: true }));
@@ -944,7 +938,7 @@ export default function ChatPage() {
     </div>
   </main>;
 
-  return <main style={viewport} data-compact={viewport.height ? parseFloat(String(viewport.height)) < 500 : undefined} className="chat-shell bg-bg">
+  return <main style={viewport} data-atmosphere={roomAtmosphere(room)} data-compact={viewport.height ? parseFloat(String(viewport.height)) < 500 : undefined} className="chat-shell bg-bg">
     {attachmentSheet && <Modal sheet titleId="attachment-heading" close={()=>setAttachmentSheet(false)}><h2 id="attachment-heading">Share an attachment</h2><p className="my-3 text-muted">Preview your file before sending.</p><div className="sheet-actions"><Button onClick={()=>{document.getElementById('chat-image-input')?.click();setAttachmentSheet(false);}}><ImagePlus aria-hidden="true"/>Image · up to 5 MB</Button><Button onClick={()=>{document.getElementById('chat-file-input')?.click();setAttachmentSheet(false);}}><FileText aria-hidden="true"/>File · up to 15 MB</Button></div><Button className="mt-4" onClick={()=>setAttachmentSheet(false)}>Close</Button></Modal>}
     {!senderName && <Modal titleId="chat-name-title" close={()=>nav('/')}>
       <div className="neo-panel w-full max-w-md p-6">
@@ -1013,7 +1007,7 @@ export default function ChatPage() {
           </div>
           <div className="chat-header__actions">
             {room.room_type === 'private' && <VoiceCallButton view={voiceView} available={participants.some(member => member.sender_id !== senderId && member.online === true)} disabled={!isJoined || recordingVoice || uploadingVoice || !connected} start={() => void voiceCall.invite()} />}
-            <ExpiryCountdown expiresAt={room.expires_at} />
+            <ExpiryCountdown expiresAt={room.expires_at} createdAt={room.created_at}/>
             <button type="button" className="chat-menu-toggle neo-action xl:hidden" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle chat menu" aria-expanded={menuOpen} aria-controls="chat-command-center"><Menu className="h-5 w-5" /></button>
           </div>
           <span role="status" className={`connection-status ${isJoined && connected ? '' : 'connection-status--idle'}`}>
@@ -1029,8 +1023,8 @@ export default function ChatPage() {
                   {leaveBusy ? <LoadingSignal label="Leaving" /> : isJoined ? 'Leave Room' : (joinBusy ? <LoadingSignal label="Joining" /> : 'Join Room')}
                 </Button>
               )}
-              <Button onClick={() => copyToClipboard(room.code, 'Channel ID copied')}><Copy className="mr-2 inline h-4 w-4" />Copy Channel ID</Button>
-              <Button onClick={() => copyToClipboard(window.location.href, 'Invite link copied')}><Link2 className="mr-2 inline h-4 w-4" />Copy Invite Link</Button>
+              <CopyButton value={room.code} label="Copy Channel ID" onCopied={()=>showToast('Channel ID copied')} onError={showToast}/>
+              <CopyButton value={window.location.href} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
               {room.creator_id === senderId && (
                 <Button
                   className="border-cyan text-cyan"
@@ -1326,7 +1320,7 @@ export default function ChatPage() {
             <span className="code-font text-punch">{recordingTime}</span>
           </div>
         )}
-        <div className="composer-options mb-2 flex flex-wrap items-center gap-3 text-xs"><label className="flex min-h-11 items-center gap-2"><span className="composer-options__label">Message lifetime</span><select aria-label="Message lifetime" value={ttlSeconds} onChange={e=>setTtlSeconds(Number(e.target.value))} disabled={!isJoined||recordingVoice} className="min-h-11 border border-accent bg-bg px-2"><option value={0}>Room lifetime</option><option value={60}>1 minute</option><option value={300}>5 minutes</option><option value={3600}>1 hour</option><option value={86400}>24 hours</option></select></label><label className="flex min-h-11 items-center gap-2"><input type="checkbox" aria-label="View-once attachments" checked={viewOnce} onChange={e=>setViewOnce(e.target.checked)} disabled={!isJoined||recordingVoice}/>View once</label></div>
+        <div className="composer-options mb-2 flex flex-wrap items-center gap-3 text-xs"><label className="flex min-h-11 items-center gap-2"><span className="composer-options__label">Message lifetime</span><select aria-label="Message lifetime" value={ttlSeconds} onChange={e=>setTtlSeconds(Number(e.target.value))} disabled={!isJoined||recordingVoice} className="min-h-11 border border-accent bg-bg px-2"><option value={0}>Room lifetime</option><option value={60}>1 minute</option><option value={300}>5 minutes</option><option value={3600}>1 hour</option><option value={86400}>24 hours</option></select></label><ToggleSwitch label="View once" aria-label="View-once attachments" checked={viewOnce} onChange={e=>setViewOnce(e.target.checked)} disabled={!isJoined||recordingVoice}/></div>
         <div className="composer-actions">
           <button
             className={`composer-action-button composer-action-button--burn ${burnAfterReadMode ? 'is-burning' : ''}`}
@@ -1402,8 +1396,8 @@ export default function ChatPage() {
             </Button>
           )}
           <ThemeToggle />
-          <Button onClick={() => copyToClipboard(room.code, 'Channel ID copied')}><Copy className="mr-2 inline h-4 w-4" />Copy Channel ID</Button>
-          <Button onClick={() => copyToClipboard(window.location.href, 'Invite link copied')}><Link2 className="mr-2 inline h-4 w-4" />Copy Invite Link</Button>
+          <CopyButton value={room.code} label="Copy Channel ID" onCopied={()=>showToast('Channel ID copied')} onError={showToast}/>
+          <CopyButton value={window.location.href} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
           <Button onClick={() => nav('/')}><House className="mr-2 inline h-4 w-4" />Home</Button>
           {room.creator_id === senderId && (
             <Button

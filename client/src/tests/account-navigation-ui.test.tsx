@@ -16,10 +16,14 @@ it('retains every account route and correctly marks the active request destinati
   for(const [path] of accountLinks)expect(nav.querySelector(`a[href="${path}"]`)).not.toBeNull();
   expect(nav.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/friends/requests');
 });
-it('opens native mobile navigation, closes at its desktop breakpoint and restores focus/scroll',async()=>{
+it('preserves mobile drawer Escape focus restoration and closes when entering desktop navigation',async()=>{
+  vi.stubGlobal('innerWidth',390);
   await act(async()=>root.render(<ThemeProvider><MemoryRouter><Routes><Route element={<AccountLayout/>}><Route path="/" element={<h1>Fixture</h1>}/></Route></Routes></MemoryRouter></ThemeProvider>));
   const trigger=host.querySelector<HTMLButtonElement>('[aria-controls="account-mobile-navigation"]')!;trigger.focus();await act(async()=>trigger.click());
   expect(document.querySelector<HTMLDialogElement>('#account-mobile-navigation')?.open).toBe(true);expect(document.body.style.overflow).toBe('hidden');
+  await act(async()=>document.querySelector('#account-mobile-navigation')!.dispatchEvent(new Event('cancel',{cancelable:true})));
+  expect(document.activeElement).toBe(trigger);expect(document.body.style.overflow).toBe('');
+  await act(async()=>trigger.click());
   vi.stubGlobal('innerWidth',1024);await act(async()=>window.dispatchEvent(new Event('resize')));
-  expect(document.querySelector<HTMLDialogElement>('#account-mobile-navigation')?.open).toBe(false);expect(document.body.style.overflow).toBe('');expect(document.activeElement).toBe(trigger);
+  expect(document.querySelector<HTMLDialogElement>('#account-mobile-navigation')?.open).toBe(false);expect(document.body.style.overflow).toBe('');expect(host.querySelector('.experimental-menu')).not.toBeNull();
 });

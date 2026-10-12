@@ -1,11 +1,12 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useVisibleViewport } from '../../hooks/useVisibleViewport';
 
-export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false, desktopBreakpoint = 1280 }: {
-  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean; desktopBreakpoint?: number;
+export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false, desktopBreakpoint = 1280, sheet = false }: {
+  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean; desktopBreakpoint?: number; sheet?: boolean;
 }) => {
+  const dragStart=useRef<number|null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const restore = useRef<((focus: boolean) => void) | null>(null);
   const viewport = useVisibleViewport();
@@ -43,8 +44,8 @@ export const NavigationOverlay = ({ id, title, code, open, close, children, imme
     return () => { if (element.open) element.close(); restore.current?.(true); };
   }, []);
   // Keep page spacing utilities out of the full-screen dialog's geometry.
-  return createPortal(<dialog ref={dialog} id={id} style={viewport} tabIndex={-1} autoFocus aria-labelledby={`${id}-title`}
-    className={`navigation-overlay ${open ? 'is-open' : ''}`}
+  return createPortal(<dialog ref={dialog} id={id} style={{...viewport,'--sheet-available-height':viewport.height,'--sheet-bottom':viewport.height?`${Math.max(0,window.innerHeight-parseFloat(String(viewport.height))-parseFloat(String(viewport.top??0)))}px`:undefined} as CSSProperties} tabIndex={-1} autoFocus aria-labelledby={`${id}-title`}
+    className={`navigation-overlay ${sheet ? 'navigation-overlay--sheet' : ''} ${open ? 'is-open' : ''}`}
     onKeyDown={event => {
       if (event.key !== 'Tab') return;
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]'))
@@ -58,6 +59,7 @@ export const NavigationOverlay = ({ id, title, code, open, close, children, imme
     onClick={event => { if (event.target === event.currentTarget) close(); }}>
     <div className="navigation-overlay__surface">
       <div className="navigation-overlay__content">
+        {sheet&&<button type="button" className="sheet-handle" aria-label="Close session controls" onClick={close} onPointerDown={event=>{dragStart.current=event.clientY;event.currentTarget.setPointerCapture(event.pointerId);}} onPointerUp={event=>{if(dragStart.current!==null&&event.clientY-dragStart.current>64)close();dragStart.current=null;}} onPointerCancel={()=>{dragStart.current=null;}}><span/></button>}
         <header className="navigation-overlay__header">
           <div><p className="code-font text-xs tracking-widest text-cyan">NULLCHANNEL</p>
             <h2 id={`${id}-title`}>{title}</h2>

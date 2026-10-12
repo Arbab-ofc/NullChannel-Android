@@ -2,10 +2,11 @@ export const BOTTOM_THRESHOLD = 80;
 /** Owns only the transcript scroll position, never the document or keyboard focus. */
 export class TranscriptScroll {
   private following = true;
+  private jumping = false;
   private unread = new Set<string>();
   private known = new Set<string>();
   private anchors: Array<{ id: string; offset: number }> = [];
-  constructor(private element: HTMLElement, private notify: (count: number) => void) {}
+  constructor(private element: HTMLElement, private notify: (count: number) => void, private reportAway: (away: boolean) => void = () => undefined) {}
   private nearBottom() { return this.element.scrollHeight-this.element.clientHeight-this.element.scrollTop <= BOTTOM_THRESHOLD; }
   private capture() {
     const top = this.element.getBoundingClientRect().top;
@@ -17,8 +18,10 @@ export class TranscriptScroll {
     }
   }
   onScroll = () => {
-    this.following = this.nearBottom();
+    if(this.jumping && this.nearBottom())this.jumping=false;
+    this.following = this.jumping || this.nearBottom();
     if (this.following) this.clear();
+    this.reportAway(this.element.scrollHeight-this.element.clientHeight-this.element.scrollTop > 240);
     this.capture();
   };
   beforeMessage(id: string, own: boolean) {
@@ -35,6 +38,7 @@ export class TranscriptScroll {
     this.restore();
   }
   restore = () => {
+    if(this.jumping)return;
     if (this.following) { this.element.scrollTop = this.element.scrollHeight; this.clear(); }
     else {
       const nodes = [...this.element.querySelectorAll<HTMLElement>('[data-message-id]')];
@@ -43,8 +47,10 @@ export class TranscriptScroll {
         if (node) { this.element.scrollTop += node.getBoundingClientRect().top-this.element.getBoundingClientRect().top-anchor.offset; break; }
       }
     }
+    this.reportAway(this.element.scrollHeight-this.element.clientHeight-this.element.scrollTop > 240);
     this.capture();
   };
-  newest = () => { this.following = true; this.restore(); };
+  interrupt = () => { this.jumping=false;this.onScroll(); };
+  newest = (smooth = false) => { this.following = true; this.clear(); if(smooth && typeof this.element.scrollTo==='function'){this.jumping=true;this.element.scrollTo({top:this.element.scrollHeight,behavior:'smooth'});}else{this.jumping=false;this.restore();} };
   private clear() { if (this.unread.size) { this.unread.clear(); this.notify(0); } }
 }

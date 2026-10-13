@@ -50,6 +50,20 @@ describe('real Express routes with isolated database boundary', () => {
     expect(response.body.data.refreshToken).toMatch(/^[a-f0-9]{64}$/);
     expect(response.body.data.identityId).toMatch(/^[0-9a-f-]{36}$/i);
   });
+  it.each([origin, 'https://localhost'])('returns exact credentialed CORS headers for configured origin %s', async allowedOrigin => {
+    const response = await request(app).options('/api/mobile/session')
+      .set('Origin', allowedOrigin)
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'content-type');
+    expect(response.headers['access-control-allow-origin']).toBe(allowedOrigin);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
+  });
+  it('does not reflect an unconfigured API origin', async () => {
+    const response = await request(app).options('/api/mobile/session')
+      .set('Origin', 'https://localhost.attacker.invalid')
+      .set('Access-Control-Request-Method', 'POST');
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
   it('rejects mobile session creation from an unconfigured origin', async () => {
     const response = await request(app).post('/api/mobile/session').set('Origin','https://attacker.example').send({});
     expect(response.status).not.toBe(201);
@@ -76,6 +90,7 @@ describe('real Express routes with isolated database boundary', () => {
     expect(response.status).toBe(200); expect(response.body.data.identityId).not.toBe(state.room.creator_id);
     const cookies = response.headers['set-cookie'] as unknown as string[];
     expect(cookies).toHaveLength(2); for (const value of cookies) { expect(value).toContain('HttpOnly'); expect(value).toContain('SameSite=Strict'); }
+    expect(response.headers['access-control-allow-origin']).toBe(origin);
     expect(cookies[0]).toContain('Max-Age=900');
     expect((await request(app).delete('/api/session').set('Origin',origin).set('Cookie',`nc_refresh=${'b'.repeat(64)}`)).status).toBe(200);
   });
@@ -162,6 +177,40 @@ describe('real Socket.IO transport with isolated database boundary', () => {
   const client = (credentials = true) => { const s = connect(url,{ autoConnect: false, reconnection: false, transports: ['websocket'], extraHeaders: { Origin: origin, ...(credentials ? { Cookie: cookie } : {}) } }); clients.push(s); return s; };
   it('rejects an unauthenticated handshake', async () => {
     const s = client(false); const error = waitFor(s,'connect_error'); s.connect(); expect((await error as Error).message).toBe('SESSION_EXPIRED');
+  });
+  it.each([origin, 'https://localhost'])('allows polling CORS only for configured origin %s', async allowedOrigin => {
+    const response = await fetch(`${url}/socket.io/?EIO=4&transport=polling`, {
+      method: 'OPTIONS',
+      headers: { Origin: allowedOrigin, 'Access-Control-Request-Method': 'GET' }
+    });
+    expect(response.headers.get('access-control-allow-origin')).toBe(allowedOrigin);
+    expect(response.headers.get('access-control-allow-credentials')).toBe('true');
+  });
+  it('does not reflect an unconfigured Socket.IO origin', async () => {
+    const response = await fetch(`${url}/socket.io/?EIO=4&transport=polling`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://attacker.invalid', 'Access-Control-Request-Method': 'GET' }
+    });
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+  });
+  it('retains website cookie authentication and accepts Android bearer socket credentials', async () => {
+    const web = client();
+    const webConnected = waitFor(web, 'connect'); web.connect(); await webConnected;
+    expect(web.connected).toBe(true);
+    web.disconnect();
+
+    state.mobileIdentity = randomUUID();
+    const android = connect(url, {
+      autoConnect: false,
+      reconnection: false,
+      transports: ['websocket'],
+      auth: { roomCode: 'TEST1234', guestToken: 'c'.repeat(64) },
+      extraHeaders: { Origin: 'https://localhost' }
+    });
+    clients.push(android);
+    const androidConnected = waitFor(android, 'connect'); android.connect(); await androidConnected;
+    expect(android.connected).toBe(true);
+    android.disconnect();
   });
   it('counts multiple tabs once and preserves authorization after a network disconnect', async () => {
     const first = client(); const second = client();

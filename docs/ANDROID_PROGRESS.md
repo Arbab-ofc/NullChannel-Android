@@ -102,3 +102,15 @@
 - Validation: final full suite passed (server 182 passed/59 skipped; client 209 passed); typecheck/lint, Vite build, Capacitor sync, Java 21 Android Gradle build, APK package inspection, and APK signature verification passed.
 - APK path: `android/app/build/outputs/apk/debug/app-debug.apk`. No device was attached to adb, and the production backend/migration remain undeployed.
 - Next action: follow the manual backend rollout in `docs/ANDROID_DEPLOYMENT_PLAN.md`, then validate the APK on an attached Android device against staging before any production release.
+
+## 2026-10-13 — Pre-deployment compatibility fixes
+
+- Starting commit: `072542359f2d66ad314cf27ae95d7b7646d01c21` on `feat/android-capacitor`; working tree was clean. Verified `origin` points to the Android repository. The website repository was not modified.
+- Completed: Socket.IO now allows credentialed polling CORS only for the exact configured website and Android origins. `MOBILE_APP_ORIGIN` remains a development/test default but is mandatory in production; missing configuration fails environment validation at startup.
+- Regression coverage: verified website account-cookie authentication and anonymous cookie issuance, HttpOnly/SameSite=Strict flags, website-origin CORS and Socket.IO handshake; verified Android account-bearer authentication and guest bearer REST/socket access; verified both allowed origins and rejection of unconfigured origins for API and Socket.IO CORS.
+- PostgreSQL: applied the v24 SQL only to a newly created disposable loopback database with a minimal `auth.users` fixture, then ran the SQL integration test for session creation, refresh rotation, replay detection/revocation, explicit logout revocation, and service-role RPC/table grants. The local test database was dropped after verification. No production Supabase access or migration occurred.
+- Files modified: `server/src/config/env.ts`, `server/src/sockets/index.ts`, `server/src/tests/api-socket.integration.test.ts`, new `server/src/tests/account-middleware.integration.test.ts`, new `server/src/tests/env.test.ts`, new `server/src/tests/mobile-auth.database.integration.test.ts`, new `server/src/tests/sql/mobile-auth-v24.sql`, and this progress record.
+- Validation: `npm run typecheck` passed; `npm run lint` passed; full test run passed (server 194 passed/60 skipped; client 209 passed); isolated PostgreSQL v24 integration test passed; `git diff --check` passed. The database exercise used the actual migration file and local PostgreSQL, not a full Supabase installation.
+- Production and staging: nothing deployed. Production mobile auth, existing website behavior on production, migration rollout, Android messaging, and audio calling remain unverified. Backend source is ready for staging deployment after review; do not distribute the Android app as production-connected until staging checks and the separate production prerequisites are complete.
+- Expected/latest milestone commit: pending final diff/secret review and commit.
+- Next recommended action: commit and push only this verified Android branch milestone, then apply v24 and deploy the backend in staging for end-to-end validation.

@@ -24,7 +24,7 @@ const connectionAddress = (req: IncomingMessage) => {
 };
 export const createSocketServer = (server: HttpServer) => {
   const io = new Server(server, {
-    cors: { origin: env.CLIENT_URL, credentials: true },
+    cors: { origin: [env.CLIENT_URL, env.MOBILE_APP_ORIGIN], credentials: true },
     maxHttpBufferSize: 64 * 1024,
     allowRequest: (req, callback) => callback(null, (req.headers.origin === env.CLIENT_URL || req.headers.origin === env.MOBILE_APP_ORIGIN) && allowEvent(`connect:${connectionAddress(req)}`, env.SOCKET_CONNECTION_LIMIT))
   });

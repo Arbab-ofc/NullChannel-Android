@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import com.getcapacitor.BridgeActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -13,6 +14,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    SplashScreen.installSplashScreen(this);
     registerPlugin(SecureCredentialStorePlugin.class);
     super.onCreate(savedInstanceState);
 

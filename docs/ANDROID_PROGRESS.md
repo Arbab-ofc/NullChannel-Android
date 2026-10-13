@@ -131,8 +131,9 @@
 - Files added/modified: `docs/supabase-migration-v25.sql`, `docs/ANDROID_DEPLOYMENT_PLAN.md`, `client/src/tests/mobile-auth.test.ts`, `server/src/tests/sql/mobile-guest-room-v25.sql`, `server/src/tests/sql/mobile-guest-v24-unlinked.sql`, `server/src/tests/mobile-auth.database.integration.test.ts`, `server/src/tests/mobile-auth-migration.test.ts`, and this progress record.
 - Validation: full workspace typecheck, lint, and build:server passed. Final workspace test run passed: server 195 passed/61 skipped; client 210 passed. The guest migration/database integration suite separately passed 2/2 tests against a local disposable loopback PostgreSQL database built through schema v24, including pre-v25 session backfill; the test databases were removed afterward. No production database was accessed. `git diff --check` passed.
 - Remaining: production migration v25 is not applied; test session/device behavior against staging before production rollout. No production deployment occurred.
-- Latest relevant Git commit: pending final commit/push.
-- Next recommended action: review and commit this isolated fix to `feat/android-capacitor`, push to the verified Android `origin`, then apply v25 only through the separately authorized production migration process.
+- Implementation commit: `ada1a4f` (`fix(android): link guest sessions to room authorization`).
+- Latest relevant Git commit: `ada1a4f`; push to the verified Android `origin` is pending.
+- Next recommended action: push `ada1a4f` to `origin/feat/android-capacitor`, then apply v25 only through the separately authorized production migration process.
 
 ### Android branch push completion
 

@@ -18,6 +18,7 @@ import { useLocalSender } from '../hooks/useLocalSender';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 import { LoadingSignal } from '../components/common/LoadingSignal';
 import { useOptionalAccount } from '../hooks/useAccount';
+import { isAndroidApp, scrollAndroidToLocation } from '../lib/android-navigation';
 
 const expiryOptions = [
   { label: '15 Min', value: 15 },
@@ -38,6 +39,7 @@ export default function LandingPage() {
   const [expiresInMinutes, setExpiresInMinutes] = useState<(typeof expiryOptions)[number]['value']>(1440);
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false),[]);
+  const pendingSection = useRef<string | null>(null);
   const [createType, setCreateType] = useState<'private' | 'group' | null>(null);
   const [createBusy, setCreateBusy] = useState<'private' | 'group' | null>(null);
   const [createError, setCreateError] = useState('');
@@ -45,6 +47,30 @@ export default function LandingPage() {
   const [activeRoomsErrorDescription,setActiveRoomsErrorDescription]=useState('');
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(true);
   const [activeRooms, setActiveRooms] = useState<Array<{ code: string; room_name: string; room_type: 'private' | 'group'; expires_at: string }>>([]);
+
+  const navigateToSection = useCallback((id: string) => {
+    const hash = `#${id}`;
+    if (location.hash === hash) {
+      scrollAndroidToLocation(location.pathname, hash);
+      return;
+    }
+    nav(`${location.pathname}${location.search}${hash}`);
+  }, [location.hash, location.pathname, location.search, nav]);
+  const sectionLinkClick = useCallback((id: string, closeOverlay = false) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!isAndroidApp() || !document.getElementById(id)) return;
+    event.preventDefault();
+    if (closeOverlay) {
+      pendingSection.current = id;
+      closeMenu();
+      return;
+    }
+    navigateToSection(id);
+  }, [closeMenu, navigateToSection]);
+  const finishSectionNavigation = useCallback(() => {
+    const id = pendingSection.current;
+    pendingSection.current = null;
+    if (id) navigateToSection(id);
+  }, [navigateToSection]);
 
   const joinChannel = () => {
     const code = joinCode.trim().toUpperCase();
@@ -92,13 +118,13 @@ export default function LandingPage() {
 
   return <main className="landing-page">
     <div className="landing-container landing-header-frame">
-      <FloatingHeader className="landing-header" panelContent={<><nav aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink>{profile?<Link to="/dashboard">Open Dashboard</Link>:<><Link to="/login">Log in</Link><Link to="/signup">Get started</Link></>}</nav><div className="infinite-navigation__actions"><ThemeToggle/><Button onClick={()=>setCreateType('private')}>Create Private</Button><Button onClick={()=>setCreateType('group')}>Create Group</Button></div></>}>
+      <FloatingHeader className="landing-header" panelContent={<><nav aria-label="Main navigation"><a href="#features" onClick={sectionLinkClick('features')} aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" onClick={sectionLinkClick('how-it-works')} aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink>{profile?<Link to="/dashboard">Open Dashboard</Link>:<><Link to="/login">Log in</Link><Link to="/signup">Get started</Link></>}</nav><div className="infinite-navigation__actions"><ThemeToggle/><Button onClick={()=>setCreateType('private')}>Create Private</Button><Button onClick={()=>setCreateType('group')}>Create Group</Button></div></>}>
         <Link to="/" aria-label="NullChannel home"><Brand /></Link>
-        <nav className="landing-nav" aria-label="Main navigation"><a href="#features" aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink></nav>
+        <nav className="landing-nav" aria-label="Main navigation"><a href="#features" onClick={sectionLinkClick('features')} aria-current={location.hash==='#features'||(!location.hash&&location.pathname==='/features')?'location':undefined}>Features</a><a href="#how-it-works" onClick={sectionLinkClick('how-it-works')} aria-current={location.hash==='#how-it-works'?'location':undefined}>How it works</a><NavLink to="/explore">Explore</NavLink><NavLink to="/docs">Docs</NavLink></nav>
         <div className="landing-header__actions"><ThemeToggle/>{profile?<Link to="/dashboard" className="nc-button nc-button--primary landing-signup">Open Dashboard <ArrowUpRight aria-hidden="true" size={16}/></Link>:<><Link to="/login" className="landing-login">Log in</Link><Link to="/signup" className="nc-button nc-button--primary landing-signup">Get started <ArrowUpRight aria-hidden="true" size={16}/></Link></>}<button className="landing-menu nc-button nc-button--secondary" aria-label="Toggle menu" aria-expanded={menuOpen} aria-controls="public-navigation" onClick={()=>setMenuOpen(value=>!value)}><Menu aria-hidden="true" size={20}/></button></div>
       </FloatingHeader>
-      <NavigationOverlay desktopBreakpoint={1024} id="public-navigation" title="Make yourself at home." open={menuOpen} close={closeMenu} immediate={createType !== null}>
-        <ThemeToggle/><section className="command-group"><h3>Discover</h3><div><a href="#features" onClick={closeMenu}>Features</a><a href="#how-it-works" onClick={closeMenu}>How it works</a><Link to="/explore">Explore</Link><Link to="/docs">Documentation</Link>{profile?<Link to="/dashboard">Open Dashboard</Link>:<><Link to="/login">Login</Link><Link to="/signup">Sign Up</Link></>}</div></section>
+      <NavigationOverlay desktopBreakpoint={1024} id="public-navigation" title="Make yourself at home." open={menuOpen} close={closeMenu} immediate={createType !== null} afterClose={finishSectionNavigation}>
+        <ThemeToggle/><section className="command-group"><h3>Discover</h3><div><a href="#features" onClick={sectionLinkClick('features', true)}>Features</a><a href="#how-it-works" onClick={sectionLinkClick('how-it-works', true)}>How it works</a><Link to="/explore" onClick={closeMenu}>Explore</Link><Link to="/docs" onClick={closeMenu}>Documentation</Link>{profile?<Link to="/dashboard" onClick={closeMenu}>Open Dashboard</Link>:<><Link to="/login" onClick={closeMenu}>Login</Link><Link to="/signup" onClick={closeMenu}>Sign Up</Link></>}</div></section>
         <section className="command-group"><h3>Your next conversation</h3><div><Button onClick={()=>{closeMenu();setCreateType('private');}}>Create Private</Button><Button onClick={()=>{closeMenu();setCreateType('group');}}>Create Group</Button></div></section>
       </NavigationOverlay>
     </div>

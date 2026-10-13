@@ -1,7 +1,12 @@
-import {useEffect,useRef,type ReactNode} from 'react';
+import {useEffect,useLayoutEffect,useRef,type ReactNode} from 'react';
 import {useLocation} from 'react-router-dom';
+import {isAndroidApp,scrollAndroidToLocation} from '../../lib/android-navigation';
 export function PageTransition({children}:{children:ReactNode}) {
- const {pathname}=useLocation();const ref=useRef<HTMLDivElement>(null);
+ const {pathname,hash}=useLocation();const ref=useRef<HTMLDivElement>(null);
+ useLayoutEffect(()=>{
+  if(!isAndroidApp())return;
+  scrollAndroidToLocation(pathname,hash);
+ },[pathname,hash]);
  useEffect(()=>{
   if(/^\/(chat\/|login|signup|forgot-password|reset-password)/.test(pathname))return;
   let done=false;

@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useVisibleViewport } from '../../hooks/useVisibleViewport';
 
-export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false, desktopBreakpoint = 1280, sheet = false }: {
-  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean; desktopBreakpoint?: number; sheet?: boolean;
+export const NavigationOverlay = ({ id, title, code, open, close, children, immediate = false, desktopBreakpoint = 1280, sheet = false, afterClose }: {
+  id: string; title: string; code?: string; open: boolean; close: () => void; children: ReactNode; immediate?: boolean; desktopBreakpoint?: number; sheet?: boolean; afterClose?: () => void;
 }) => {
   const dragStart=useRef<number|null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -31,14 +31,14 @@ export const NavigationOverlay = ({ id, title, code, open, close, children, imme
       element.showModal();
       element.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
     } else if (!open && element.open) {
-      const finish = () => { element.close(); restore.current?.(!immediate); };
+      const finish = () => { element.close(); restore.current?.(!immediate); afterClose?.(); };
       if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) finish();
       else timer = setTimeout(finish, 300);
     }
     const resize = () => { if (open && window.innerWidth >= desktopBreakpoint) close(); };
     window.addEventListener('resize', resize);
     return () => { clearTimeout(timer); window.removeEventListener('resize', resize); };
-  }, [open, close, immediate, desktopBreakpoint]);
+  }, [open, close, immediate, desktopBreakpoint, afterClose]);
   useEffect(() => {
     const element = dialog.current!;
     return () => { if (element.open) element.close(); restore.current?.(true); };

@@ -2,6 +2,7 @@ import type {Server,Socket} from 'socket.io';
 import {logger} from '../utils/logger.js';
 import {supabase} from '../config/supabase.js';
 import {verifyAccountCookie} from './account.service.js';
+import {verifyMobileSession} from './mobile-auth.service.js';
 import {friendIds,blockedIds} from './social.service.js';
 type Presence='online'|'away'|'invisible';
 const connections=new Map<string,Map<string,{status:Presence,seen:number}>>();
@@ -36,7 +37,7 @@ export const attachAccountPresence=async(io:Server,socket:Socket,account:string)
  const heartbeat=async(payload?:{status?:unknown})=>{
  const requestedStatus=payload?.status&&['online','away','invisible'].includes(String(payload.status));
  if(Date.now()-lastHeartbeat<5000&&!requestedStatus)return;lastHeartbeat=Date.now();
- try{const user=await verifyAccountCookie(socket.handshake.headers.cookie);if(!user||user.id!==account){socket.disconnect(true);return;}
+ try{const user=socket.data?.mobileSessionId?await verifyMobileSession(socket.data.mobileSessionId):await verifyAccountCookie(socket.handshake.headers.cookie);const userId=user&&'accountId'in user?user.accountId:user&&'id'in user?user.id:null;if(userId!==account){socket.disconnect(true);return;}
  const current=connections.get(account)?.get(socket.id);if(!current)return;
  const previous=current.status;
  if(payload?.status&&['online','away','invisible'].includes(String(payload.status))){for(const tab of tabs.values())tab.status=payload.status as Presence;}

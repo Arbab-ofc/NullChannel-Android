@@ -50,6 +50,8 @@ router.post('/mobile/auth/signup', signupLimit, async (req, res, next) => {
     if (!data.session || !data.user) {
       res.status(201).json(successResponse({ profile: null, verification_required: true })); return;
     }
+    const signedOut=await auth.auth.admin.signOut(data.session.access_token,'local');
+    if(signedOut.error)throw new Error('AUTH_UNAVAILABLE');
     const credentials = await createMobileSession(data.user.id);
     res.status(201).json(successResponse({ ...responseFor(credentials), profile: await profileFor(data.user.id), verification_required: false }));
   } catch (error) { next(error); }
@@ -59,8 +61,11 @@ router.post('/mobile/auth/login', loginLimit, async (req, res, next) => {
   try {
     const parsed = z.object({ email: z.email(), password: z.string().min(1).max(128) }).safeParse(req.body);
     if (!parsed.success) { res.status(400).json(errorResponse('VALIDATION_ERROR', 'Enter a valid email and password.')); return; }
-    const { data, error } = await accountAuthClient().auth.signInWithPassword(parsed.data);
+    const auth=accountAuthClient();
+    const { data, error } = await auth.auth.signInWithPassword(parsed.data);
     if (error || !data.user || !data.session) { res.status(401).json(errorResponse('INVALID_CREDENTIALS', 'Unable to sign in with those credentials.')); return; }
+    const signedOut=await auth.auth.admin.signOut(data.session.access_token,'local');
+    if(signedOut.error)throw new Error('AUTH_UNAVAILABLE');
     const credentials = await createMobileSession(data.user.id);
     res.json(successResponse({ ...responseFor(credentials), profile: await profileFor(data.user.id) }));
   } catch (error) { next(error); }

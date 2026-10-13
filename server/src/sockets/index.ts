@@ -14,6 +14,7 @@ import { setSocketServer } from './emitter.js';
 import { readCookie, verifySession } from '../services/session.service.js';
 import { accessCookie } from '../middlewares/auth.middleware.js';
 import { allowEvent } from './rateLimit.js';
+import { mobileAccountActive, verifyMobileAccess } from '../services/mobile-auth.service.js';
 
 const connectionAddress = (req: IncomingMessage) => {
   const peer = req.socket.remoteAddress ?? 'unknown';
@@ -25,11 +26,29 @@ export const createSocketServer = (server: HttpServer) => {
   const io = new Server(server, {
     cors: { origin: env.CLIENT_URL, credentials: true },
     maxHttpBufferSize: 64 * 1024,
-    allowRequest: (req, callback) => callback(null, req.headers.origin === env.CLIENT_URL && allowEvent(`connect:${connectionAddress(req)}`, env.SOCKET_CONNECTION_LIMIT))
+    allowRequest: (req, callback) => callback(null, (req.headers.origin === env.CLIENT_URL || req.headers.origin === env.MOBILE_APP_ORIGIN) && allowEvent(`connect:${connectionAddress(req)}`, env.SOCKET_CONNECTION_LIMIT))
   });
 
   io.use(async (socket, next) => {
     try {
+      if(socket.handshake.headers.origin===env.MOBILE_APP_ORIGIN){
+        const auth=socket.handshake.auth as {accountToken?:unknown;guestToken?:unknown;roomCode?:unknown};
+        const roomCode=typeof auth.roomCode==='string'?auth.roomCode.toUpperCase():'';
+        const account=await verifyMobileAccess(auth.accountToken);
+        if(account?.accountId&&await mobileAccountActive(account.accountId)){
+          if(!roomCode){socket.data.accountId=account.accountId;socket.data.mobileSessionId=account.id;socket.data.identity=randomUUID();socket.data.socialOnly=true;next();return;}
+          const room=await getRoomByCode(roomCode);
+          if(room&&room.room_kind!=='guest'){
+            const mapping=await supabase.from('nc_room_identities').select('sender_id,alias,role').eq('room_id',room.id).eq('account_id',account.accountId).maybeSingle();
+            if(mapping.error||!mapping.data)return next(new Error('JOIN_REQUIRED'));
+            socket.data.accountId=account.accountId;socket.data.mobileSessionId=account.id;socket.data.identity=mapping.data.sender_id;socket.data.alias=mapping.data.alias;socket.data.roomRole=mapping.data.role;socket.data.accountRoom=room.id;next();return;
+          }
+        }
+        if(!roomCode)return next(new Error('SESSION_EXPIRED'));
+        const guest=await verifyMobileAccess(auth.guestToken);
+        if(guest?.identityId){socket.data.identity=guest.identityId;socket.data.mobileSessionId=guest.id;next();return;}
+        return next(new Error('SESSION_EXPIRED'));
+      }
       const account = await verifyAccountCookie(socket.request.headers.cookie);
       if (account) {
         socket.data.accountId = account.id;

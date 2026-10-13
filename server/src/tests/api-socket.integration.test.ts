@@ -7,12 +7,13 @@ const { state, from, rpc } = vi.hoisted(() => {
   Object.assign(process.env, { NODE_ENV: 'test', CLIENT_URL: 'http://localhost:5173', SUPABASE_URL: 'https://test.invalid', SUPABASE_SERVICE_ROLE_KEY: 'test-only', IMAGEKIT_PUBLIC_KEY: 'test-public', IMAGEKIT_PRIVATE_KEY: 'test-private', IMAGEKIT_URL_ENDPOINT: 'https://test.invalid', SOCKET_JOIN_LIMIT: '2', SOCKET_MESSAGE_LIMIT: '2' });
   const identity = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
-  const state = { valid: true, member: true, dbFailure: false, identity, room: { id: '33333333-3333-4333-8333-333333333333', code: 'TEST1234', creator_id: owner, room_type: 'group', room_name: 'Test room', expires_at: new Date(Date.now()+3600000).toISOString() }, message: { id: '44444444-4444-4444-8444-444444444444', room_id: '33333333-3333-4333-8333-333333333333', sender_id: owner, sender_name: 'Owner', type: 'text', created_at: new Date().toISOString(), deleted: false, burn_after_read: false } };
+  const state = { valid: true, member: true, dbFailure: false, identity, mobileIdentity: null as string | null, room: { id: '33333333-3333-4333-8333-333333333333', code: 'TEST1234', creator_id: owner, room_type: 'group', room_name: 'Test room', expires_at: new Date(Date.now()+3600000).toISOString() }, message: { id: '44444444-4444-4444-8444-444444444444', room_id: '33333333-3333-4333-8333-333333333333', sender_id: owner, sender_name: 'Owner', type: 'text', created_at: new Date().toISOString(), deleted: false, burn_after_read: false } };
   const from = vi.fn((table: string) => {
     const result = (single: boolean) => {
       if (state.dbFailure) return { data: null, error: new Error('private database details'), count: null };
       let data: unknown;
       if (table === 'anonymous_sessions') data = state.valid ? { id: 'session', identity_id: state.identity, revoked_at: null, expires_at: new Date(Date.now()+3600000).toISOString(), access_expires_at: new Date(Date.now()+600000).toISOString() } : null;
+      else if (table === 'mobile_auth_sessions') data = state.mobileIdentity ? { id: 'mobile-session', account_id: null, identity_id: state.mobileIdentity } : null;
       else if (table === 'rooms') data = single ? state.room : [state.room];
       else if (table === 'room_members') data = single ? (state.member ? { id: 'member' } : null) : [];
       else if (table === 'messages') data = single ? state.message : [];
@@ -21,7 +22,7 @@ const { state, from, rpc } = vi.hoisted(() => {
       return { data, error: null, count: 0 };
     };
     const chain: Record<string, unknown> = {};
-    for (const key of ['select','eq','in','gt','lte','is','not','order','limit','insert','update','delete','upsert']) chain[key] = () => chain;
+    for (const key of ['select','eq','in','gt','gte','lte','is','not','order','range','limit','insert','update','delete','upsert']) chain[key] = () => chain;
     chain.maybeSingle = () => Promise.resolve(result(true)); chain.single = () => Promise.resolve(result(true));
     chain.then = (resolve: (value: unknown) => void) => Promise.resolve(result(false)).then(resolve);
     return chain;
@@ -38,7 +39,7 @@ import { onlineIdentities } from '../sockets/emitter.js';
 import { createSocketServer } from '../sockets/index.js';
 const cookie = `nc_access=${'a'.repeat(64)}`;
 const origin = 'http://localhost:5173';
-beforeEach(() => { state.identity = randomUUID(); state.valid = true; state.member = true; state.dbFailure = false; state.message.burn_after_read = false; state.message.sender_id = state.room.creator_id; vi.clearAllMocks(); });
+beforeEach(() => { state.identity = randomUUID(); state.mobileIdentity=null;state.valid = true; state.member = true; state.dbFailure = false; state.message.burn_after_read = false; state.message.sender_id = state.room.creator_id; vi.clearAllMocks(); });
 describe('real Express routes with isolated database boundary', () => {
   it('creates a mobile guest session for the exact Capacitor origin without issuing browser cookies', async () => {
     const response = await request(app).post('/api/mobile/session').set('Origin','https://localhost').send({});
@@ -53,6 +54,12 @@ describe('real Express routes with isolated database boundary', () => {
     const response = await request(app).post('/api/mobile/session').set('Origin','https://attacker.example').send({});
     expect(response.status).not.toBe(201);
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+  it('authorizes Android guest REST requests with the server-issued bearer identity',async()=>{
+    state.mobileIdentity=randomUUID();
+    const response=await request(app).get('/api/rooms/TEST1234/messages').set('Origin','https://localhost').set('Authorization',`Bearer ${'c'.repeat(64)}`);
+    expect(response.status).toBe(200);
+    expect(response.headers['access-control-allow-origin']).toBe('https://localhost');
   });
   it('issues HttpOnly cookies without adopting a legacy UUID and supports revocation', async () => {
     const response = await request(app).post('/api/session').set('Origin',origin).send({ senderId: state.room.creator_id });

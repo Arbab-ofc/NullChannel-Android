@@ -8,6 +8,14 @@ import './styles/mobile-experience.css';
 import './styles/immersive.css';
 import { ThemeProvider } from './hooks/useTheme';
 import { ensureSession } from './lib/session';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+
+if(Capacitor.isNativePlatform()){
+  void CapacitorApp.addListener('backButton',({canGoBack})=>{if(canGoBack||window.history.length>1)window.history.back();else void CapacitorApp.exitApp();}).catch(()=>undefined);
+  void CapacitorApp.addListener('resume',()=>window.dispatchEvent(new Event('nullchannel-app-resume'))).catch(()=>undefined);
+  void CapacitorApp.addListener('pause',()=>window.dispatchEvent(new Event('nullchannel-app-pause'))).catch(()=>undefined);
+}
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 const start = async () => {
   // Preserve the established guest identity invariant before guest components mount.

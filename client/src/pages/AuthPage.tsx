@@ -4,6 +4,7 @@ import { SignalArt } from '../components/common/SignalArt';
 import { useId, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { accountApi, accountError } from '../lib/account';
+import { isNativeMobile, mobileLogin, mobileSignup } from '../lib/mobile-auth';
 import { useAccount } from '../hooks/useAccount';
 import { Button } from '../components/common/Button';
 import { ThemeToggle } from '../components/common/ThemeToggle';
@@ -17,8 +18,8 @@ export default function AuthPage({mode}: {mode: 'login' | 'signup' | 'forgot-pas
     if ((mode === 'signup' || mode === 'reset-password') && password !== fields.get('confirm')) { setError('Passwords do not match.'); return; }
     setBusy(true);
     try {
-      if (mode === 'login') { await accountApi.post('/account/login',{email: fields.get('email'),password}); await refresh(); localStorage.setItem('nullchannel_account_event',`login:${Date.now()}`); nav(safeNext(search.get('next')), {replace:true}); }
-      if (mode === 'signup') { const res = await accountApi.post('/account/signup',{username:fields.get('username'),email:fields.get('email'),password}); if (res.data.data?.profile) { await refresh(); nav('/dashboard'); } else setNotice('Check your email to verify your account, then sign in.'); }
+      if (mode === 'login') { if(isNativeMobile())await mobileLogin(String(fields.get('email')),password);else await accountApi.post('/account/login',{email: fields.get('email'),password}); await refresh(); localStorage.setItem('nullchannel_account_event',`login:${Date.now()}`); nav(safeNext(search.get('next')), {replace:true}); }
+      if (mode === 'signup') { const res = isNativeMobile()?{data:{data:await mobileSignup(String(fields.get('username')),String(fields.get('email')),password)}}:await accountApi.post('/account/signup',{username:fields.get('username'),email:fields.get('email'),password}); if (res.data.data?.profile) { await refresh(); nav('/dashboard'); } else setNotice('Check your email to verify your account, then sign in.'); }
       if (mode === 'forgot-password') { await accountApi.post('/account/forgot-password',{email:fields.get('email')}); setNotice('If this email can receive a reset link, instructions will arrive shortly.'); }
       if (mode === 'reset-password') { const hash = new URLSearchParams(window.location.hash.slice(1)); const accessToken = hash.get('access_token'); const refreshToken = hash.get('refresh_token'); if (!accessToken || !refreshToken) throw new Error('invalid-reset'); await accountApi.post('/account/reset-password',{password,accessToken,refreshToken}); history.replaceState(null,'','/reset-password'); setNotice('Password updated. You can sign in now.'); }
     } catch (e) { setError(e instanceof Error && e.message === 'invalid-reset' ? 'This reset link is invalid or expired. Request a new link.' : accountError(e)); } finally { setBusy(false); }

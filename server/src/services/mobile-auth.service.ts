@@ -81,3 +81,9 @@ export async function verifyMobileSession(id: unknown): Promise<MobilePrincipal 
   if (error) throw error;
   return data ? { id: data.id, accountId: data.account_id, identityId: data.identity_id } : null;
 }
+
+export async function mobileAccountActive(accountId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('profiles').select('deletion_pending').eq('id', accountId).maybeSingle();
+  if (error) throw error;
+  return !!data && !data.deletion_pending;
+}

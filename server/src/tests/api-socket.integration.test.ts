@@ -40,6 +40,20 @@ const cookie = `nc_access=${'a'.repeat(64)}`;
 const origin = 'http://localhost:5173';
 beforeEach(() => { state.identity = randomUUID(); state.valid = true; state.member = true; state.dbFailure = false; state.message.burn_after_read = false; state.message.sender_id = state.room.creator_id; vi.clearAllMocks(); });
 describe('real Express routes with isolated database boundary', () => {
+  it('creates a mobile guest session for the exact Capacitor origin without issuing browser cookies', async () => {
+    const response = await request(app).post('/api/mobile/session').set('Origin','https://localhost').send({});
+    expect(response.status).toBe(201);
+    expect(response.headers['access-control-allow-origin']).toBe('https://localhost');
+    expect(response.headers['set-cookie']).toBeUndefined();
+    expect(response.body.data.accessToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(response.body.data.refreshToken).toMatch(/^[a-f0-9]{64}$/);
+    expect(response.body.data.identityId).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+  it('rejects mobile session creation from an unconfigured origin', async () => {
+    const response = await request(app).post('/api/mobile/session').set('Origin','https://attacker.example').send({});
+    expect(response.status).not.toBe(201);
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
   it('issues HttpOnly cookies without adopting a legacy UUID and supports revocation', async () => {
     const response = await request(app).post('/api/session').set('Origin',origin).send({ senderId: state.room.creator_id });
     expect(response.status).toBe(200); expect(response.body.data.identityId).not.toBe(state.room.creator_id);

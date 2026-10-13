@@ -28,3 +28,22 @@
 - Known blockers: no APK can be built here until a supported Android Studio/SDK toolchain is available. Mobile auth/API/socket support has not been implemented; production connectivity is not verified.
 - Expected/latest milestone commit: `build(android): add bundled Capacitor project` (pending).
 - Next recommended action: implement additive mobile session/authentication endpoints and hashed rotating refresh-token storage, then wire secure native storage and platform-aware API/socket credentials.
+
+### M2 completion record
+
+- Commit: `af0cf36` (`build(android): add bundled Capacitor project`), pushed to `origin/feat/android-capacitor`.
+- Outcome: React/Vite assets are bundled locally under the generated Capacitor Android project; no remote `server.url` is used.
+
+## 2026-10-13 — M3: Mobile authentication backend source
+
+- Objective: add a separate Android account/session credential flow without changing existing website cookie handlers.
+- Completed locally: added mobile guest-session, signup, login, refresh, and logout routes; opaque 256-bit access and refresh tokens are returned only to the client, while only SHA-256 hashes are stored server-side. Access expires in 10 minutes; refresh values rotate and consumed-token reuse revokes the session.
+- Database: added additive migration v24 for service-role-only mobile session tables and create/rotate/revoke RPCs. The migration has not been applied to any database.
+- Origin protection: added one exact Capacitor origin (`https://localhost`) beside the existing exact website origin; no wildcard or global Origin bypass was added. Existing website account routes and cookie issuance are unchanged.
+- Deployment documentation: added `docs/ANDROID_DEPLOYMENT_PLAN.md` with migration ordering, required environment, compatibility/security checks, rollback, and production stop condition.
+- Files modified/added: `server/src/app.ts`, `server/src/config/env.ts`, `server/src/middlewares/auth.middleware.ts`, `server/src/middlewares/security.middleware.ts`, `server/src/routes/mobile-auth.routes.ts`, `server/src/services/mobile-auth.service.ts`, `server/src/tests/api-socket.integration.test.ts`, `docs/supabase-migration-v24.sql`, `docs/ANDROID_DEPLOYMENT_PLAN.md`, and this progress log.
+- Validation: server typecheck and lint passed; focused integration suite passed (19 tests); full `npm test` passed (server: 168 passed, 59 skipped; client: 200 passed).
+- Production: not deployed. Production API, mobile credentials, messaging, and calls are not verified.
+- Known blockers: server-side access validation is not yet wired into all REST and Socket.IO paths; Android client secure credential storage and token refresh integration remain; SQL rotation/replay behavior has not been run against PostgreSQL; Android SDK and Gradle build remain unavailable.
+- Expected/latest milestone commit: `feat(android): add rotating mobile authentication` (pending).
+- Next recommended action: add Android Keystore secure storage and wire platform-aware mobile credentials through REST and Socket.IO, then exercise the server migration in an isolated PostgreSQL database.

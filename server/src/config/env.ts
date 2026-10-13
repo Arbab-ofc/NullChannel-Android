@@ -8,6 +8,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(5050),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   CLIENT_URL: z.string().url().refine(value => new URL(value).origin === value, 'Use an exact origin without a trailing slash.'),
+  MOBILE_APP_ORIGIN: z.string().url().refine(value => new URL(value).origin === value, 'Use an exact mobile app origin without a trailing slash.').default('https://localhost'),
   DATABASE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(15000),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),

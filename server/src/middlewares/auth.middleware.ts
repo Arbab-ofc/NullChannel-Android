@@ -10,7 +10,9 @@ import { errorResponse } from '../utils/apiResponse.js';
 export const accessCookie = () => isProd ? '__Host-nc_access' : 'nc_access';
 export const refreshCookie = () => isProd ? '__Host-nc_refresh' : 'nc_refresh';
 export const requireOrigin: RequestHandler = (req, res, next) => {
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin !== env.CLIENT_URL) {
+  const origin = req.headers.origin;
+  const allowedOrigin = origin === env.CLIENT_URL || origin === env.MOBILE_APP_ORIGIN;
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !allowedOrigin) {
     res.status(403).json(errorResponse('CSRF_REJECTED', 'A matching Origin header is required.')); return;
   }
   next();

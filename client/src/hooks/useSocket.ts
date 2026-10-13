@@ -6,7 +6,8 @@ export const useSocket = (roomCode: string) => {
   useEffect(() => {
     transport.auth = { roomCode };
     if(!transport.connected)connectRoomTransport(transport);
-    return () => { if(activeCallSnapshot()?.roomCode!==roomCode.toUpperCase())disconnectRoomTransport(transport); };
+    const resume=()=>{if(!document.hidden&&!transport.connected)connectRoomTransport(transport);};document.addEventListener('visibilitychange',resume);window.addEventListener('nullchannel-app-resume',resume);
+    return () => {document.removeEventListener('visibilitychange',resume);window.removeEventListener('nullchannel-app-resume',resume); if(activeCallSnapshot()?.roomCode!==roomCode.toUpperCase())disconnectRoomTransport(transport); };
   }, [roomCode,transport]);
   return transport;
 };

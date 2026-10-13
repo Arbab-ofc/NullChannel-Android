@@ -1,10 +1,15 @@
 import axios from 'axios';
 import { API_URL } from './constants';
+import { ensureMobileGuestSession, isNativeMobile } from './mobile-auth';
 let identity = '';
 let pending: Promise<string> | undefined;
 export const currentIdentity = () => identity;
 export const ensureSession = () => {
   if (!pending) {
+    if(isNativeMobile()){
+      pending=ensureMobileGuestSession().then(next=>{identity=next;return next;}).finally(()=>{pending=undefined;});
+      return pending;
+    }
     const send = () => axios.post(`${API_URL}/api/session`, {}, { withCredentials: true });
     // Coordinate bootstrapping across tabs without exposing cookie credentials.
     const response = async () => {

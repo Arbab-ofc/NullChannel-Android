@@ -6,11 +6,20 @@ import { readCookie, verifySession } from '../services/session.service.js';
 import { getRoomByCode } from '../services/room.service.js';
 import { isActiveMember } from '../services/membership.service.js';
 import { errorResponse } from '../utils/apiResponse.js';
+import { mobileAccountActive, verifyMobileAccess } from '../services/mobile-auth.service.js';
 
 export const accessCookie = () => isProd ? '__Host-nc_access' : 'nc_access';
 export const refreshCookie = () => isProd ? '__Host-nc_refresh' : 'nc_refresh';
+const mobileToken=async(req:Parameters<RequestHandler>[0],header:string)=>{
+  if(req.headers.origin!==env.MOBILE_APP_ORIGIN)return null;
+  const value=req.get(header);
+  const token=value?.match(/^Bearer ([a-f0-9]{64})$/)?.[1]??(header.toLowerCase()==='x-nc-account-token'&&value&&/^[a-f0-9]{64}$/.test(value)?value:undefined);
+  return verifyMobileAccess(token);
+};
 export const requireOrigin: RequestHandler = (req, res, next) => {
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin !== env.CLIENT_URL) {
+  const origin = req.headers.origin;
+  const allowedOrigin = origin === env.CLIENT_URL || origin === env.MOBILE_APP_ORIGIN;
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !allowedOrigin) {
     res.status(403).json(errorResponse('CSRF_REJECTED', 'A matching Origin header is required.')); return;
   }
   next();
@@ -18,11 +27,22 @@ export const requireOrigin: RequestHandler = (req, res, next) => {
 export const authenticate: RequestHandler = async (req, res, next) => {
   try {
     if (req.path === '/media/upload' || req.path.startsWith('/media/files/')) {
+      const mobile=await mobileToken(req,'X-NC-Account-Token')??await mobileToken(req,'Authorization');
+      if(mobile?.accountId&&await mobileAccountActive(mobile.accountId)){res.locals.accountId=mobile.accountId;res.locals.mobileSessionId=mobile.id;next();return;}
       const account = await verifyAccountCookie(req.headers.cookie);
       if (account) { res.locals.accountId = account.id; next(); return; }
     }
     const roomCode = req.path.match(/^\/rooms\/([A-Z0-9]{8})(?:\/|$)/i)?.[1];
-    if (roomCode) {
+    if (roomCode&&req.headers.origin===env.MOBILE_APP_ORIGIN) {
+      const room=await getRoomByCode(roomCode.toUpperCase());
+      if(room&&room.room_kind!=='guest'){
+        const mobile=await mobileToken(req,'X-NC-Account-Token')??await mobileToken(req,'Authorization');
+        if(mobile?.accountId&&await mobileAccountActive(mobile.accountId)){
+          const mapping=await supabase.from('nc_room_identities').select('sender_id,alias,role').eq('room_id',room.id).eq('account_id',mobile.accountId).maybeSingle();
+          if(mapping.error)throw mapping.error;
+          if(mapping.data){res.locals.accountId=mobile.accountId;res.locals.identity=mapping.data.sender_id;res.locals.alias=mapping.data.alias;res.locals.roomRole=mapping.data.role;res.locals.accountRoom=room.id;res.locals.mobileSessionId=mobile.id;if(req.body&&typeof req.body==='object'){req.body.senderId=mapping.data.sender_id;if('senderName'in req.body)req.body.senderName=mapping.data.alias;}next();return;}
+        }
+      }
       const account = await verifyAccountCookie(req.headers.cookie);
       if (account) {
         const room = await getRoomByCode(roomCode.toUpperCase());
@@ -36,6 +56,22 @@ export const authenticate: RequestHandler = async (req, res, next) => {
         }
       }
     }
+    if(roomCode&&req.headers.origin!==env.MOBILE_APP_ORIGIN){
+      const account=await verifyAccountCookie(req.headers.cookie);
+      if(account){
+        const room=await getRoomByCode(roomCode.toUpperCase());
+        if(room&&room.room_kind!=='guest'){
+          const {data,error}=await supabase.from('nc_room_identities').select('sender_id,alias,role').eq('room_id',room.id).eq('account_id',account.id).maybeSingle();
+          if(error)throw error;
+          if(!data){res.status(403).json(errorResponse('JOIN_REQUIRED','Join this registered channel first.'));return;}
+          res.locals.accountId=account.id;res.locals.identity=data.sender_id;res.locals.alias=data.alias;res.locals.roomRole=data.role;
+          if(req.body&&typeof req.body==='object'){req.body.senderId=data.sender_id;if('senderName'in req.body)req.body.senderName=data.alias;}
+          next();return;
+        }
+      }
+    }
+    const mobile=await mobileToken(req,'Authorization');
+    if(mobile?.identityId){res.locals.identity=mobile.identityId;res.locals.mobileSessionId=mobile.id;if(req.body&&typeof req.body==='object')req.body.senderId=mobile.identityId;if(req.params.senderId)req.params.senderId=mobile.identityId;next();return;}
     const session = await verifySession(readCookie(req.headers.cookie, accessCookie()));
     if (!session) { res.status(401).json(errorResponse('SESSION_EXPIRED', 'Renew your anonymous session.')); return; }
     res.locals.identity = session.identity_id;

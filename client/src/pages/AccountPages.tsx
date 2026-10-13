@@ -14,8 +14,18 @@ import { useAccount } from '../hooks/useAccount';
 import { Button } from '../components/common/Button';
 import { Field } from './AuthPage';
 import { accountSocket } from '../lib/account-socket';
-import { API_URL } from '../lib/constants';
+import { API_URL, IS_NATIVE_APP } from '../lib/constants';
 type RecordData = Record<string, unknown>;
+function AvatarPreview({url}:{url:string}){
+  const [source,setSource]=useState(()=>IS_NATIVE_APP?'':`${API_URL}${url}`);
+  useEffect(()=>{
+    if(!IS_NATIVE_APP){setSource(`${API_URL}${url}`);return;}
+    let live=true;let objectUrl='';
+    void accountApi.get(url.replace(/^\/api/,''),{responseType:'blob'}).then(response=>{if(!live)return;objectUrl=URL.createObjectURL(response.data);setSource(objectUrl);}).catch(()=>{if(live)setSource('');});
+    return()=>{live=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};
+  },[url]);
+  return source?<img className="mb-4 h-20 w-20 border-2 border-accent object-cover" src={source} alt="Your profile avatar"/>:null;
+}
 export function useAccountList(path: string) {
   const [data,setData] = useState<RecordData[]>([]); const [loading,setLoading] = useState(true); const [error,setError] = useState('');
   const dirty=useRef(new Set<string>());const pending=useRef(new Map<string,Promise<void>>());const currentPath=useRef(path);currentPath.current=path;
@@ -53,7 +63,7 @@ function AvatarEditor(){
   const {profile,refresh}=useAccount();const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');
   async function upload(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=new FormData(e.currentTarget);const file=form.get('file');if(!(file instanceof File)||file.size>2*1024*1024){setMessage('Choose a JPEG, PNG or WebP image under 2 MiB.');return;}setBusy(true);setMessage('');try{await accountApi.post('/account/avatar',form);await refresh();setMessage('Avatar updated.');}catch(e){setMessage(accountError(e));}finally{setBusy(false);}}
   async function remove(){setBusy(true);setMessage('');try{await accountApi.delete('/account/avatar');await refresh();setMessage('Avatar removed.');}catch(e){setMessage(accountError(e));}finally{setBusy(false);}}
-  return <section className="neo-panel mb-6 max-w-xl p-6"><h2 className="mb-4 text-xl font-bold">Profile avatar</h2>{profile?.avatar_url&&<img className="mb-4 h-20 w-20 border-2 border-accent object-cover" src={`${API_URL}${profile.avatar_url}`} alt="Your profile avatar"/>}<form onSubmit={e=>void upload(e)} className="space-y-4"><label className="block text-sm">JPEG, PNG or WebP · maximum 2 MiB<input required type="file" name="file" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full min-w-0 py-2"/></label><div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy}>{busy?'Saving…':'Upload avatar'}</Button>{profile?.avatar_url&&<Button type="button" disabled={busy} onClick={()=>void remove()}>Remove avatar</Button>}</div></form>{message&&<p className="mt-3" role="status">{message}</p>}<p className="mt-3 text-xs text-muted">Persistent avatar visibility follows your profile privacy. Anonymous room aliases use separate identities.</p></section>;
+  return <section className="neo-panel mb-6 max-w-xl p-6"><h2 className="mb-4 text-xl font-bold">Profile avatar</h2>{profile?.avatar_url&&<AvatarPreview url={profile.avatar_url}/>}<form onSubmit={e=>void upload(e)} className="space-y-4"><label className="block text-sm">JPEG, PNG or WebP · maximum 2 MiB<input required type="file" name="file" accept="image/jpeg,image/png,image/webp" className="mt-2 block w-full min-w-0 py-2"/></label><div className="flex flex-wrap gap-3"><Button type="submit" disabled={busy}>{busy?'Saving…':'Upload avatar'}</Button>{profile?.avatar_url&&<Button type="button" disabled={busy} onClick={()=>void remove()}>Remove avatar</Button>}</div></form>{message&&<p className="mt-3" role="status">{message}</p>}<p className="mt-3 text-xs text-muted">Persistent avatar visibility follows your profile privacy. Anonymous room aliases use separate identities.</p></section>;
 }
 export function ProfilePage() {
   const {profile,refresh} = useAccount(); const [message,setMessage] = useState(''); const [busy,setBusy] = useState(false);

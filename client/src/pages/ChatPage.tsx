@@ -36,6 +36,7 @@ import { ExpiryCountdown } from '../components/chat/ExpiryCountdown';
 import { CommandCenter } from '../components/chat/CommandCenter';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 import { LoadingSignal } from '../components/common/LoadingSignal';
+import { publicAppUrl } from '../lib/constants';
 
 type ReactionSummary = { emoji: string; count: number; senders: Array<{ sender_id: string; sender_name: string }> };
 type MessageType = 'text'|'image'|'voice'|'file';
@@ -1011,7 +1012,7 @@ export default function ChatPage() {
                 </Button>
               )}
               <CopyButton value={room.code} label="Copy Channel ID" onCopied={()=>showToast('Channel ID copied')} onError={showToast}/>
-              <CopyButton value={window.location.href} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
+              <CopyButton value={publicAppUrl(window.location.href)} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
               {room.creator_id === senderId && (
                 <Button
                   className="border-cyan text-cyan"
@@ -1384,7 +1385,7 @@ export default function ChatPage() {
           )}
           <ThemeToggle />
           <CopyButton value={room.code} label="Copy Channel ID" onCopied={()=>showToast('Channel ID copied')} onError={showToast}/>
-          <CopyButton value={window.location.href} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
+          <CopyButton value={publicAppUrl(window.location.href)} label="Copy Invite Link" onCopied={()=>showToast('Invite link copied')} onError={showToast}/>
           <Button onClick={() => nav(profile?'/dashboard':'/')}><House className="mr-2 inline h-4 w-4" />Home</Button>
           {room.creator_id === senderId && (
             <Button

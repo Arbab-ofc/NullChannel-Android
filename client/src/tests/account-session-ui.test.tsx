@@ -9,7 +9,7 @@ import {ThemeToggle} from '../components/common/ThemeToggle';
 import { AccountProvider, useAccount } from '../hooks/useAccount';
 const {get,post,connect,disconnect,guestDisconnect} = vi.hoisted(()=>({get:vi.fn(),post:vi.fn(),connect:vi.fn(),disconnect:vi.fn(),guestDisconnect:vi.fn()}));
 vi.mock('../lib/account',()=>({accountApi:{get,post},accountError:()=> 'Temporary verification error'}));
-vi.mock('../lib/account-socket',()=>({accountSocket:{connect,disconnect,on:vi.fn(),off:vi.fn(),emit:vi.fn()}}));
+vi.mock('../lib/account-socket',()=>({accountSocket:{connect,disconnect,on:vi.fn(),off:vi.fn(),emit:vi.fn()},connectAccountSocket:connect}));
 vi.mock('../lib/socket',()=>({disconnectSocket:guestDisconnect}));
 let root:Root;let container:HTMLDivElement;
 function AccountView(){const {profile,logout,refresh}=useAccount();return <><p>{profile?.username??'Guest'}</p><button onClick={()=>void logout()}>Logout</button><button onClick={()=>void refresh()}>Refresh</button></>;}

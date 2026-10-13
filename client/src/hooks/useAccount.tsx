@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import axios from 'axios';
 import { accountApi, accountError, type Profile } from '../lib/account';
 import { disconnectSocket } from '../lib/socket';
-import { accountSocket } from '../lib/account-socket';
+import { accountSocket, connectAccountSocket } from '../lib/account-socket';
+import { isNativeMobile, mobileLogout } from '../lib/mobile-auth';
 const Context = createContext<{profile: Profile | null; loading: boolean; error?:string; refresh: () => Promise<void>; logout: () => Promise<void>} | null>(null);
 export function AccountProvider({children}: {children: ReactNode}) {
   const generation=useRef(0);
@@ -26,13 +27,14 @@ export function AccountProvider({children}: {children: ReactNode}) {
   const username = profile?.deletion_pending?undefined:profile?.username;
   useEffect(() => {
     if (!username) { accountSocket.disconnect(); return; }
-    accountSocket.connect();
+    connectAccountSocket();
     const heartbeat = () => accountSocket.emit('presence:heartbeat');
     accountSocket.on('connect', heartbeat);
     const interval = window.setInterval(heartbeat, 30000);
-    return () => { window.clearInterval(interval); accountSocket.off('connect',heartbeat); accountSocket.disconnect(); };
+    const resume=()=>{if(!document.hidden&&!accountSocket.connected)connectAccountSocket();};document.addEventListener('visibilitychange',resume);window.addEventListener('nullchannel-app-resume',resume);
+    return () => { window.clearInterval(interval);document.removeEventListener('visibilitychange',resume);window.removeEventListener('nullchannel-app-resume',resume); accountSocket.off('connect',heartbeat); accountSocket.disconnect(); };
   },[username]);
-  const logout = async () => {const request=()=>accountApi.post('/account/logout');if(typeof navigator!=='undefined'&&navigator.locks)await navigator.locks.request('nullchannel-account-refresh',request);else await request();console.info('account_transition',{reason:'logout_confirmed'}); generation.current++;setError(''); setLoading(false); disconnectSocket(); accountSocket.disconnect(); setProfile(null); try{localStorage.setItem('nullchannel_account_event',`logout:${Date.now()}`);}catch{/* Server logout remains authoritative when storage is blocked. */} };
+  const logout = async () => {const request=()=>isNativeMobile()?mobileLogout():accountApi.post('/account/logout');if(typeof navigator!=='undefined'&&navigator.locks)await navigator.locks.request('nullchannel-account-refresh',request);else await request();console.info('account_transition',{reason:'logout_confirmed'}); generation.current++;setError(''); setLoading(false); disconnectSocket(); accountSocket.disconnect(); setProfile(null); try{localStorage.setItem('nullchannel_account_event',`logout:${Date.now()}`);}catch{/* Server logout remains authoritative when storage is blocked. */} };
   return <Context.Provider value={{profile,loading,error,refresh,logout}}>{children}</Context.Provider>;
 }
 export function useAccount() { const value = useContext(Context); if (!value) throw new Error('AccountProvider required'); return value; }

@@ -3,11 +3,13 @@ import { z } from 'zod';
 
 if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
 
+const exactOrigin = z.string().url().refine(value => new URL(value).origin === value, 'Use an exact mobile app origin without a trailing slash.');
 const envSchema = z.object({
   BACKGROUND_CLEANUP_ENABLED: z.enum(['true','false']).default('true'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5050),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   CLIENT_URL: z.string().url().refine(value => new URL(value).origin === value, 'Use an exact origin without a trailing slash.'),
+  MOBILE_APP_ORIGIN: exactOrigin.optional(),
   DATABASE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(15000),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
@@ -32,9 +34,14 @@ const envSchema = z.object({
   HOST: z.string().default('127.0.0.1'),
   FRIEND_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   CLEANUP_SECRET: z.string().optional()
-});
+}).superRefine((value, context) => {
+  if (value.NODE_ENV === 'production' && !value.MOBILE_APP_ORIGIN) {
+    context.addIssue({ code: 'custom', path: ['MOBILE_APP_ORIGIN'], message: 'MOBILE_APP_ORIGIN must be explicitly configured in production.' });
+  }
+}).transform(value => ({ ...value, MOBILE_APP_ORIGIN: value.MOBILE_APP_ORIGIN ?? 'https://localhost' }));
 
-const parsed = envSchema.safeParse(process.env);
+export const parseEnvironment = (source: Record<string, string | undefined>) => envSchema.safeParse(source);
+const parsed = parseEnvironment(process.env);
 if (!parsed.success) {
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), severity: 'error', operation: 'invalid_environment', fields: [...new Set(parsed.error.issues.map(issue => issue.path.join('.')))] }));
   process.exit(1);

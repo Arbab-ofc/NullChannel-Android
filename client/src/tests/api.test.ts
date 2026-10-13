@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const { capture, request, renew } = vi.hoisted(() => ({ capture: vi.fn(), request: vi.fn(), renew: vi.fn() }));
-vi.mock('axios', () => ({ default: { create: vi.fn(() => ({ interceptors: { response: { use: capture } }, request })) } }));
-vi.mock('../lib/constants', () => ({ API_URL: '' }));
+const { capture, requestCapture, request, renew } = vi.hoisted(() => ({ capture: vi.fn(), requestCapture: vi.fn(), request: vi.fn(), renew: vi.fn() }));
+vi.mock('axios', () => ({ default: { create: vi.fn(() => ({ interceptors: { request: { use: requestCapture }, response: { use: capture } }, request })) } }));
+vi.mock('../lib/constants', () => ({ API_URL: '', IS_NATIVE_APP: false }));
 vi.mock('../lib/session', () => ({ ensureSession: renew }));
+vi.mock('../lib/mobile-auth', () => ({ mobileAccessToken: vi.fn(), isNativeMobile: () => false }));
 beforeEach(() => { vi.resetModules(); vi.clearAllMocks(); });
 describe('API expiry and failure handling', () => {
   it('renews an expired credential and retries exactly once', async () => {

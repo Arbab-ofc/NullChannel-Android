@@ -1,6 +1,7 @@
 import privacyRoutes from './routes/privacy.routes.js';
 import groupToolsRoutes from './routes/group-tools.routes.js';
 import accountRoutes from './routes/account.routes.js';
+import mobileAuthRoutes from './routes/mobile-auth.routes.js';
 import socialRoutes from './routes/social.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import registeredRoomRoutes from './routes/registered-room.routes.js';
@@ -35,6 +36,7 @@ app.use('/api', healthRoutes);
 app.use('/api', cleanupRoutes);
 app.use('/api', requireOrigin);
 app.use('/api', sessionRoutes);
+app.use('/api', mobileAuthRoutes);
 app.use('/api', rateLimit({ handler: rateLimitHandler, windowMs: 60000, limit: 300 }));
 app.use('/api', accountRoutes);
 app.use('/api', socialRoutes);

@@ -114,3 +114,10 @@
 - Production and staging: nothing deployed. Production mobile auth, existing website behavior on production, migration rollout, Android messaging, and audio calling remain unverified. Backend source is ready for staging deployment after review; do not distribute the Android app as production-connected until staging checks and the separate production prerequisites are complete.
 - Expected/latest milestone commit: pending final diff/secret review and commit.
 - Next recommended action: commit and push only this verified Android branch milestone, then apply v24 and deploy the backend in staging for end-to-end validation.
+
+### Pre-deployment compatibility fixes completion record
+
+- Implementation commit: `ee7c8cb` (`fix(android): secure mobile origin compatibility`). The code, tests, isolated PostgreSQL fixture, and progress entry are committed on `feat/android-capacitor`.
+- Final validation: workspace typecheck and lint passed; backend suite passed (194 passed/60 skipped); client suite passed (209 passed); isolated PostgreSQL migration/RPC integration test passed; staged diff check passed.
+- Push destination: verified `origin` is `https://github.com/Arbab-ofc/NullChannel-Android.git`; push to `origin/feat/android-capacitor` is pending.
+- Next action: push the two Android-only commits, then run the documented v24 and backend rollout in staging before any production release.

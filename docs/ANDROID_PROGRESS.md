@@ -14,3 +14,17 @@
 - Remaining tasks: Capacitor integration, secure native token storage, mobile auth endpoints and token rotation/replay handling, platform-aware REST/socket auth, Android permissions and lifecycle handling, tests, APK build, and production rollout documentation.
 - Latest relevant Git commit: pending M1 commit.
 - Next recommended action: add Capacitor and native secure storage scaffolding, then proceed through mobile auth/service changes using additive migrations and focused tests.
+
+## 2026-10-13 — M2: Capacitor Android project
+
+- Objective: package the existing Vite client as local APK assets using Capacitor.
+- Completed: added Capacitor `8.5.3` core to the client workspace and CLI/Android platform to the root workspace; configured app ID `com.nullchannel.android`, app name `NullChannel`, bundled `webDir: client/dist`, and HTTPS Android WebView scheme; added Android sync/open scripts; generated the Android project and copied the built client assets.
+- Website behavior: no React routing, API, authentication, or website runtime code changed in this milestone. No `server.url` remote loading is configured.
+- Android permissions: INTERNET, RECORD_AUDIO, and MODIFY_AUDIO_SETTINGS are declared; microphone is optional at install time. Android backup is disabled to avoid backing up app credential storage without its Keystore key.
+- Files modified/added: root `package.json`, `package-lock.json`, `client/package.json`, `capacitor.config.ts`, generated `android/` project (Gradle wrapper/configuration, manifest, activity, resources), and this progress log.
+- Validation: `npm run build:client` passed; `npx cap add android` passed; `npx cap doctor` passed; `npx cap sync android` passed; `npm run typecheck` passed; `npm run lint` passed; `npm test` passed (server: 166 passed, 59 skipped; client: 200 passed).
+- APK build: not attempted because Android Studio/SDK, `adb`, `sdkmanager`, and `gradle` are unavailable in the environment. `node_modules` is now installed as required for the integration.
+- Dependency notice: npm reported 8 audit findings (3 moderate, 5 high) after workspace installation; no automatic audit fixes were applied.
+- Known blockers: no APK can be built here until a supported Android Studio/SDK toolchain is available. Mobile auth/API/socket support has not been implemented; production connectivity is not verified.
+- Expected/latest milestone commit: `build(android): add bundled Capacitor project` (pending).
+- Next recommended action: implement additive mobile session/authentication endpoints and hashed rotating refresh-token storage, then wire secure native storage and platform-aware API/socket credentials.

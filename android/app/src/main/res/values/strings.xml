@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NullChannel</string>
+    <string name="title_activity_main">NullChannel</string>
+    <string name="package_name">com.nullchannel.android</string>
+    <string name="custom_url_scheme">com.nullchannel.android</string>
+</resources>

@@ -132,8 +132,9 @@
 - Validation: full workspace typecheck, lint, and build:server passed. Final workspace test run passed: server 195 passed/61 skipped; client 210 passed. The guest migration/database integration suite separately passed 2/2 tests against a local disposable loopback PostgreSQL database built through schema v24, including pre-v25 session backfill; the test databases were removed afterward. No production database was accessed. `git diff --check` passed.
 - Remaining: production migration v25 is not applied; test session/device behavior against staging before production rollout. No production deployment occurred.
 - Implementation commit: `ada1a4f` (`fix(android): link guest sessions to room authorization`).
-- Latest relevant Git commit: `ada1a4f`; push to the verified Android `origin` is pending.
-- Next recommended action: push `ada1a4f` to `origin/feat/android-capacitor`, then apply v25 only through the separately authorized production migration process.
+- Progress record commit: `d0daa69` (`docs(android): record guest auth repair`). Both commits were pushed to the verified Android `origin/feat/android-capacitor`.
+- Latest relevant implementation commit: `ada1a4f`; branch HEAD after the progress record is `d0daa69775953b9e1d4264102b78b2bfcbcfcd25`.
+- Next recommended action: stage and review v25 against a production-like restored backup, then apply it only through the separately authorized production migration process.
 
 ### Android branch push completion
 

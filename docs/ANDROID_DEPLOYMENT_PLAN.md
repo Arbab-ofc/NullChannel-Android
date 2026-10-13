@@ -13,15 +13,17 @@ This plan is documentation only. No production VPS, environment, service, or dat
 
 ## Database migration
 
-- Review and apply `docs/supabase-migration-v24.sql` before deploying code that calls the new mobile session RPCs.
+- Check the production migration ledger/catalog first. Apply v24 only if its tables/RPCs are absent; do not rerun it when already installed.
+- Apply `docs/supabase-migration-v25.sql` after v24 and before deploying this guest-auth fix. It links mobile guest sessions to `anonymous_sessions`, the existing database authorization source required by `create_room`/`join_room`, and backfills existing v24 guest sessions.
+- v25 aborts on a mobile guest UUID already owned by an unrelated anonymous session. Treat `MOBILE_GUEST_IDENTITY_COLLISION` as a stop-and-investigate condition; do not bypass the guard or overwrite the website session.
 - Before the migration, verify a recent restorable Supabase backup/snapshot exists, record the current migration version, and follow the production database owner's backup and restore procedure. The migration is additive, but the backup is still a rollout prerequisite.
-- The additive migration creates `mobile_auth_sessions` and `mobile_auth_refresh_tokens`, enables RLS, denies browser roles, grants access only to `service_role`, and adds narrowly scoped session create/rotate/revoke RPCs.
+- v24 creates `mobile_auth_sessions` and `mobile_auth_refresh_tokens`, enables RLS, denies browser roles, grants access only to `service_role`, and adds narrowly scoped session create/rotate/revoke RPCs. v25 adds a nullable, cascading mobile-session link to `anonymous_sessions`; it does not alter website cookie hashes or cookie authentication.
 - Do not apply the migration from this repository or from the Android build pipeline. Use the production database owner's reviewed migration procedure and backup policy.
 - No existing user, profile, friendship, message, room, or website session data is rewritten by this migration.
 
 ## Compatibility and security verification
 
-1. Verify the migration in an isolated database with representative existing schema and confirm rerunning the migration is not used to rewrite its recorded history.
+1. Verify v24/v25 in an isolated database with representative existing schema, including a pre-v25 mobile guest session; confirm the backfill and do not rerun either non-idempotent migration.
 2. Confirm the existing website login, signup, refresh, logout, CSRF rejection, and HttpOnly cookie attributes remain unchanged.
 3. Confirm mobile signup/login rate limits and email-verification behavior; ensure errors and logs never include passwords, access values, or refresh values.
 4. Confirm the app origin receives credentialed CORS headers only when exactly configured; reject lookalike, HTTP, wildcard, and arbitrary origins.
@@ -47,7 +49,7 @@ This plan is documentation only. No production VPS, environment, service, or dat
 ## Production validation and stop condition
 
 1. Confirm a restorable database backup and the reviewed migration file/hash.
-2. Apply migration v24 using the database owner's approved process.
+2. Apply only missing migration versions, in order, through the database owner's approved process; for an existing v24 deployment, apply v25 once.
 3. Configure `MOBILE_APP_ORIGIN=https://localhost` in the protected server environment and deploy the reviewed Android repository backend build through the production owner's release process.
 4. Verify the server starts and the website's existing cookie auth still works before testing the Android app.
 5. Run the Android-origin and website-origin mobile-login checks below, then validate mobile login/logout, guest session restoration, rooms, messaging, presence, file access, and audio-only calling on staging.

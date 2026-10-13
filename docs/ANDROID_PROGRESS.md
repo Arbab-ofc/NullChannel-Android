@@ -122,6 +122,18 @@
 - Push destination: verified `origin` is `https://github.com/Arbab-ofc/NullChannel-Android.git`; push to `origin/feat/android-capacitor` is pending.
 - Next action: push the two Android-only commits, then run the documented v24 and backend rollout in staging before any production release.
 
+## 2026-10-14 — Android guest room authorization fix
+
+- Starting commit: `4e85cbb33121e3887b4a6a23aa954cdcceaa24d1` on `feat/android-capacitor`; working tree was clean and `origin` points to the Android repository.
+- Root cause: `/api/mobile/session` wrote a guest identity only to `mobile_auth_sessions`. The unchanged `create_room` RPC invokes `join_room`, which authorizes guest identities by requiring an active `anonymous_sessions` row. Mobile refresh/revoke likewise never updated that database authorization row.
+- Completed locally: added additive migration v25 to link mobile guest sessions to `anonymous_sessions`, backfill existing v24 guest identities without adopting website cookie hashes, synchronize expirations during token rotation, and revoke the linked anonymous identity on logout, replay, or refresh expiry. Registered mobile accounts and existing website cookie session code are unchanged.
+- Regression coverage: isolated PostgreSQL tests verify the v24-to-v25 backfill, guest session creation followed by `create_room`, room creation after refresh, rejection after logout, and rejection/revocation after expiry. SQL fixtures roll back test sessions/rooms.
+- Files added/modified: `docs/supabase-migration-v25.sql`, `docs/ANDROID_DEPLOYMENT_PLAN.md`, `client/src/tests/mobile-auth.test.ts`, `server/src/tests/sql/mobile-guest-room-v25.sql`, `server/src/tests/sql/mobile-guest-v24-unlinked.sql`, `server/src/tests/mobile-auth.database.integration.test.ts`, `server/src/tests/mobile-auth-migration.test.ts`, and this progress record.
+- Validation: full workspace typecheck, lint, and build:server passed. Final workspace test run passed: server 195 passed/61 skipped; client 210 passed. The guest migration/database integration suite separately passed 2/2 tests against a local disposable loopback PostgreSQL database built through schema v24, including pre-v25 session backfill; the test databases were removed afterward. No production database was accessed. `git diff --check` passed.
+- Remaining: production migration v25 is not applied; test session/device behavior against staging before production rollout. No production deployment occurred.
+- Latest relevant Git commit: pending final commit/push.
+- Next recommended action: review and commit this isolated fix to `feat/android-capacitor`, push to the verified Android `origin`, then apply v25 only through the separately authorized production migration process.
+
 ### Android branch push completion
 
 - Commits `ee7c8cb` and `794344d` were pushed successfully to `origin/feat/android-capacitor` (`https://github.com/Arbab-ofc/NullChannel-Android.git`). The remote branch resolves to `794344d4a2b1b60a403986c4b34e502929e2c767`.

@@ -99,6 +99,18 @@ describe('Android mobile credentials', () => {
     expect(isMobileSessionEndpointUnavailable()).toBe(true);
   });
 
+  it('replaces an expired guest refresh session with a new secure guest identity', async () => {
+    state.values.set('mobile.guest.bundle', JSON.stringify({...payload(credential('a'),credential('b')),accessExpiresAt:new Date(0).toISOString()}));
+    state.post.mockRejectedValueOnce({isAxiosError:true,response:{status:401,data:{error:{code:'MOBILE_SESSION_EXPIRED'}}}});
+    state.post.mockResolvedValueOnce({data:{data:{...payload(credential('c'),credential('d')),identityId:'11111111-1111-4111-8111-111111111111'}}});
+    await expect(ensureMobileGuestSession()).resolves.toBe('11111111-1111-4111-8111-111111111111');
+    expect(state.post).toHaveBeenNthCalledWith(1,'https://nullchannel.teleflow.cyou/api/mobile/auth/refresh',null,{
+      withCredentials:false,headers:{Authorization:`Bearer ${credential('b')}`}
+    });
+    expect(state.post).toHaveBeenNthCalledWith(2,'https://nullchannel.teleflow.cyou/api/mobile/session',{}, {withCredentials:false});
+    expect(JSON.parse(state.values.get('mobile.guest.bundle')!).refreshToken).toBe(credential('d'));
+  });
+
   it('identifies a server that rejects the Capacitor Origin', async () => {
     state.post.mockRejectedValueOnce({isAxiosError:true,response:{status:403,data:{error:{code:'CSRF_REJECTED'}}}});
     await expect(ensureMobileGuestSession()).rejects.toMatchObject({response:{status:403}});

@@ -94,3 +94,11 @@
 - New automated coverage includes Capacitor-origin gating, expired-session guest recreation diagnosis, concurrent refresh coalescing, refresh/logout serialization, proactive refresh before socket expiry, mobile RPC contract/security invariants, and mobile Socket.IO stable-session revalidation.
 - SQL was statically audited and covered by migration invariant tests; no isolated PostgreSQL cluster was created because the available local listener's ownership was unknown and Docker was unavailable. Production SQL was not executed.
 - Commit status before final review: `19e9406`; M10 changes are ready for a focused commit and push to `origin/feat/android-capacitor`.
+
+### M10 completion record
+
+- Commit: `2c5b1ed` (`fix(android): recover mobile sessions and handle insets`), pushed successfully to `origin/feat/android-capacitor`.
+- Outcome: production incompatibility is reproduced and documented; the app now reports missing mobile backend/origin support, proactively rotates expiring mobile credentials, recovers authorized sockets, and applies Android 15/16 system/IME insets. Website auth code continues through its existing cookie routes.
+- Validation: final full suite passed (server 182 passed/59 skipped; client 209 passed); typecheck/lint, Vite build, Capacitor sync, Java 21 Android Gradle build, APK package inspection, and APK signature verification passed.
+- APK path: `android/app/build/outputs/apk/debug/app-debug.apk`. No device was attached to adb, and the production backend/migration remain undeployed.
+- Next action: follow the manual backend rollout in `docs/ANDROID_DEPLOYMENT_PLAN.md`, then validate the APK on an attached Android device against staging before any production release.

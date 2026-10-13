@@ -7,8 +7,18 @@ import { createMobileSession, revokeMobileSession, rotateMobileSession } from '.
 import { rateLimitHandler } from '../middlewares/rateLimit.middleware.js';
 import { errorResponse, successResponse } from '../utils/apiResponse.js';
 import { respondToAuthEmailFailure } from '../services/auth-email.service.js';
+import { env } from '../config/env.js';
 
 const router = Router();
+// These endpoints are only for the bundled Capacitor origin. The website keeps
+// using its existing cookie endpoints and cannot accidentally mint mobile tokens.
+router.use('/mobile', (req, res, next) => {
+  if (req.headers.origin !== env.MOBILE_APP_ORIGIN) {
+    res.status(403).json(errorResponse('MOBILE_ORIGIN_REQUIRED', 'Use the NullChannel Android application.'));
+    return;
+  }
+  next();
+});
 const limiter = (limit: number) => rateLimit({ windowMs: 60000, limit, handler: rateLimitHandler, standardHeaders: true, legacyHeaders: false });
 const guestLimit = limiter(30);
 const loginLimit = limiter(10);

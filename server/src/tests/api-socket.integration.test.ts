@@ -55,6 +55,16 @@ describe('real Express routes with isolated database boundary', () => {
     expect(response.status).not.toBe(201);
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
   });
+  it('routes an Android login to mobile validation instead of anonymous-session middleware', async () => {
+    const response = await request(app).post('/api/mobile/auth/login').set('Origin','https://localhost').send({});
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+  it('keeps the mobile login endpoints unavailable to the website origin', async () => {
+    const response = await request(app).post('/api/mobile/auth/login').set('Origin',origin).send({});
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('MOBILE_ORIGIN_REQUIRED');
+  });
   it('authorizes Android guest REST requests with the server-issued bearer identity',async()=>{
     state.mobileIdentity=randomUUID();
     const response=await request(app).get('/api/rooms/TEST1234/messages').set('Origin','https://localhost').set('Authorization',`Bearer ${'c'.repeat(64)}`);

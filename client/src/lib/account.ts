@@ -32,6 +32,9 @@ accountApi.interceptors.response.use(response => response, async error => {
 export type Profile = { username: string; display_name: string; bio?: string; avatar_url?: string | null; deletion_pending?:boolean; privacy?: Record<string, unknown> };
 export function accountError(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    if (IS_NATIVE_APP && ['SESSION_EXPIRED','CSRF_REJECTED'].includes(error.response?.data?.error?.code) && /\/api\/mobile\/(?:auth\/(?:login|signup)|session)/.test(error.config?.url ?? '')) {
+      return 'Android sign-in is not enabled for this app on the server yet. The mobile endpoints and https://localhost origin must be configured.';
+    }
     if (error.response?.status === 429) return 'Too many attempts. Please wait and try again.';
     if (error.response?.status === 401) return 'Please sign in again, or check your credentials.';
     const message = error.response?.data?.error?.message ?? error.response?.data?.error;

@@ -16,7 +16,11 @@ api.interceptors.response.use(response => response, async error => {
   const config = error.config;
   if(IS_NATIVE_APP&&error.response?.status===401&&config&&!config.mobileRetried){
     config.mobileRetried=true;
-    const [guest,account]=await Promise.all([mobileAccessToken('guest',true),mobileAccessToken('account',true)]);
+    let guest=await mobileAccessToken('guest',true);
+    const account=await mobileAccessToken('account',true);
+    if(!guest){
+      try{await ensureSession();guest=await mobileAccessToken('guest');}catch{/* Keep the original API failure if mobile sessions are unavailable. */}
+    }
     if(guest){config.headers.set('Authorization',`Bearer ${guest}`);if(account)config.headers.set('X-NC-Account-Token',account);return api.request(config);}
   }
   if (!IS_NATIVE_APP&&error.response?.status === 401 && config && !config.sessionRetried) {

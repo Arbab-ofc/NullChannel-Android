@@ -16,6 +16,7 @@ type Props = {
   rooms: ActiveRoom[];
   loading: boolean;
   error: string;
+  errorDescription?: string;
   refresh: () => Promise<void>;
   openRoom: (code: string) => void;
   createRoom: (kind: 'private' | 'group') => void;
@@ -26,7 +27,7 @@ const categories = [
 ] as const;
 
 /** Presentation only: the parent owns loading, refresh and existing room actions. */
-export function ActiveRoomsSection({ rooms, loading, error, refresh, openRoom, createRoom }: Props) {
+export function ActiveRoomsSection({ rooms, loading, error, errorDescription, refresh, openRoom, createRoom }: Props) {
   const available = !loading && !error;
   return <section className="spaces-workspace" aria-labelledby="spaces-heading">
     <PullToRefresh refresh={refresh} showRefreshButton={false}>
@@ -36,7 +37,7 @@ export function ActiveRoomsSection({ rooms, loading, error, refresh, openRoom, c
       </header>
       {error && !loading && <div role="alert" className="spaces-error">
         <span className="spaces-error__icon"><AlertCircle aria-hidden="true"/></span>
-        <div><h3>Couldn't load your rooms</h3><p>We couldn't retrieve your rooms right now.</p></div>
+        <div><h3>Couldn't load your rooms</h3><p>{errorDescription ?? "We couldn't retrieve your rooms right now."}</p></div>
         <Button onClick={() => void refresh()} className="spaces-retry"><RefreshCw aria-hidden="true"/>Retry</Button>
       </div>}
       {(!error || loading) && <div className="spaces-grid">

@@ -13,6 +13,7 @@ import { Menu } from 'lucide-react';
 import { NavigationOverlay } from '../components/common/NavigationOverlay';
 import { Button } from '../components/common/Button';
 import { api } from '../lib/api';
+import { isMobileSessionEndpointUnavailable } from '../lib/mobile-auth';
 import { useLocalSender } from '../hooks/useLocalSender';
 import { ThemeToggle } from '../components/common/ThemeToggle';
 import { LoadingSignal } from '../components/common/LoadingSignal';
@@ -41,6 +42,7 @@ export default function LandingPage() {
   const [createBusy, setCreateBusy] = useState<'private' | 'group' | null>(null);
   const [createError, setCreateError] = useState('');
   const [activeRoomsError,setActiveRoomsError]=useState('');
+  const [activeRoomsErrorDescription,setActiveRoomsErrorDescription]=useState('');
   const [activeRoomsLoading, setActiveRoomsLoading] = useState(true);
   const [activeRooms, setActiveRooms] = useState<Array<{ code: string; room_name: string; room_type: 'private' | 'group'; expires_at: string }>>([]);
 
@@ -75,8 +77,8 @@ export default function LandingPage() {
   const roomRequest=useRef<Promise<void>|null>(null);
   const refreshRooms=useCallback(()=>{
     if(roomRequest.current)return roomRequest.current;
-    setActiveRoomsLoading(true);setActiveRoomsError('');
-    const request=api.get(`/users/${senderId}/rooms`).then(res=>{if(!Array.isArray(res.data.data))throw new Error('Invalid room-list response');setActiveRooms(res.data.data);}).catch(()=>setActiveRoomsError('Unable to load your rooms. Use Refresh to try again.')).finally(()=>{setActiveRoomsLoading(false);roomRequest.current=null;});roomRequest.current=request;return request;
+    setActiveRoomsLoading(true);setActiveRoomsError('');setActiveRoomsErrorDescription('');
+    const request=api.get(`/users/${senderId}/rooms`).then(res=>{if(!Array.isArray(res.data.data))throw new Error('Invalid room-list response');setActiveRooms(res.data.data);}).catch(()=>{setActiveRoomsError('Unable to load your rooms. Use Refresh to try again.');if(isMobileSessionEndpointUnavailable())setActiveRoomsErrorDescription('Android sessions are not enabled on this server yet. The mobile authentication backend must be deployed.');}).finally(()=>{setActiveRoomsLoading(false);roomRequest.current=null;});roomRequest.current=request;return request;
   },[senderId]);
   useEffect(()=>{void refreshRooms();},[refreshRooms]);
 
@@ -139,7 +141,7 @@ export default function LandingPage() {
         ['Does ending a room remove my friends?','No. Friendship persists. Conversations do not.']
       ].map(([question,answer])=><details key={question}><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div></section>
       <section className="landing-final"><span className="nc-eyebrow">Some moments don’t need a history</span><h2>Stay connected.<br/><span>Travel light.</span></h2><div className="hero-actions"><Link to={accountHome??'/signup'} className="nc-button nc-button--primary">{profile?'Open Dashboard':'Get Started'} <ArrowUpRight aria-hidden="true"/></Link><Button onClick={()=>setCreateType('private')}>Start anonymously</Button></div><SignalArt/></section>
-      <ActiveRoomsSection rooms={activeRooms} loading={activeRoomsLoading} error={activeRoomsError} refresh={refreshRooms} openRoom={code => nav(`/chat/${code}`)} createRoom={setCreateType}/>
+      <ActiveRoomsSection rooms={activeRooms} loading={activeRoomsLoading} error={activeRoomsError} errorDescription={activeRoomsErrorDescription||undefined} refresh={refreshRooms} openRoom={code => nav(`/chat/${code}`)} createRoom={setCreateType}/>
 
     </div>
     {createType && (

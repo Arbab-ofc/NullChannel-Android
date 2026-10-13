@@ -13,9 +13,14 @@ type TokenBundle = { accessToken: string; refreshToken: string; accessExpiresAt:
 type AuthResponse = TokenBundle & { profile?: unknown; verification_required?: boolean };
 const store = registerPlugin<NativeStore>('SecureCredentialStore');
 const native = () => Capacitor.isNativePlatform();
+const ACCESS_REFRESH_AHEAD_MS = 2 * 60 * 1000;
 const key = (kind: Kind) => `mobile.${kind}.bundle`;
 const pendingRefresh = new Map<Kind, Promise<TokenBundle | null>>();
 const memory = new Map<Kind, TokenBundle>();
+const logoutInFlight = new Set<Kind>();
+let mobileSessionEndpointUnavailable = false;
+
+export const isMobileSessionEndpointUnavailable = () => native() && mobileSessionEndpointUnavailable;
 
 async function readBundle(kind: Kind): Promise<TokenBundle | null> {
   const cached = memory.get(kind);
@@ -45,6 +50,7 @@ export async function clearMobileCredentials(kind: Kind): Promise<void> {
 async function refreshBundle(kind: Kind): Promise<TokenBundle | null> {
   const existing = pendingRefresh.get(kind);
   if (existing) return existing;
+  if (logoutInFlight.has(kind)) return null;
   const refresh = (async () => {
     const current = await readBundle(kind);
     if (!current?.refreshToken) return null;
@@ -82,26 +88,49 @@ export async function mobileAccessToken(kind: Kind, forceRefresh = false): Promi
   return (await bundle(kind, forceRefresh))?.accessToken || null;
 }
 
-export async function mobileSocketCredentials(): Promise<{ accountToken?: string; guestToken?: string }> {
+export async function mobileSocketCredentials(forceRefresh = false): Promise<{ accountToken?: string; guestToken?: string }> {
   if (!native()) return {};
-  const [accountToken, guestToken] = await Promise.all([mobileAccessToken('account'), mobileAccessToken('guest')]);
+  const [accountToken, guestToken] = await Promise.all([mobileAccessToken('account',forceRefresh), mobileAccessToken('guest',forceRefresh)]);
   return { ...(accountToken ? { accountToken } : {}), ...(guestToken ? { guestToken } : {}) };
 }
 
-export async function configureMobileSocket(socket: Socket, roomCode?: string): Promise<void> {
+export async function configureMobileSocket(socket: Socket, roomCode?: string, forceRefresh = false): Promise<void> {
   if (!native()) return;
-  const credentials = await mobileSocketCredentials();
+  const credentials = await mobileSocketCredentials(forceRefresh);
   socket.auth = { ...(roomCode ? { roomCode } : {}), ...credentials };
 }
 
 export async function ensureMobileGuestSession(): Promise<string> {
   const current = await bundle('guest');
   if (current?.accessToken && current.identityId) return current.identityId;
-  const response = await axios.post(`${API_URL}/api/mobile/session`, {}, { withCredentials: false });
+  let response;
+  try {
+    response = await axios.post(`${API_URL}/api/mobile/session`, {}, { withCredentials: false });
+    mobileSessionEndpointUnavailable = false;
+  } catch (error) {
+    if (axios.isAxiosError(error) && ((error.response?.status === 401 && error.response.data?.error?.code === 'SESSION_EXPIRED') || (error.response?.status === 403 && error.response.data?.error?.code === 'CSRF_REJECTED'))) {
+      // These responses mean the deployed server is not accepting the bundled
+      // mobile session path/origin. Preserve the diagnosis for the room UI.
+      mobileSessionEndpointUnavailable = true;
+    }
+    throw error;
+  }
   const issued = response.data.data as TokenBundle;
   if (!issued.identityId) throw new Error('The guest session could not be restored.');
   await saveBundle('guest', issued);
   return issued.identityId;
+}
+
+/** Rotate before access expiry so the 15-second server socket revalidator sees
+ * the same session row with fresh expiry instead of dropping active sockets. */
+export async function refreshMobileCredentialsBeforeExpiry(): Promise<void> {
+  if (!native()) return;
+  await Promise.all((['guest', 'account'] as const).map(async kind => {
+    const current = await readBundle(kind);
+    if (!current) return;
+    const expiry = Date.parse(current.accessExpiresAt);
+    if (!Number.isFinite(expiry) || expiry <= Date.now() + ACCESS_REFRESH_AHEAD_MS) await refreshBundle(kind);
+  }));
 }
 
 export async function mobileLogin(email: string, password: string): Promise<AuthResponse> {
@@ -119,17 +148,23 @@ export async function mobileSignup(username: string, email: string, password: st
 }
 
 export async function mobileLogout(): Promise<void> {
-  const current = await readBundle('account');
-  if (!current?.refreshToken) { await clearMobileCredentials('account'); return; }
+  logoutInFlight.add('account');
   try {
-    await axios.post(`${API_URL}/api/mobile/auth/logout`, null, {
-      withCredentials: false,
-      headers: { Authorization: `Bearer ${current.refreshToken}` }
-    });
-  } catch (error) {
-    if (!axios.isAxiosError(error) || error.response?.status !== 401) throw error;
+    await pendingRefresh.get('account')?.catch(() => null);
+    const current = await readBundle('account');
+    if (!current?.refreshToken) { await clearMobileCredentials('account'); return; }
+    try {
+      await axios.post(`${API_URL}/api/mobile/auth/logout`, null, {
+        withCredentials: false,
+        headers: { Authorization: `Bearer ${current.refreshToken}` }
+      });
+    } catch (error) {
+      if (!axios.isAxiosError(error) || error.response?.status !== 401) throw error;
+    }
+    await clearMobileCredentials('account');
+  } finally {
+    logoutInFlight.delete('account');
   }
-  await clearMobileCredentials('account');
 }
 
 export const isNativeMobile = () => native();

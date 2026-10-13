@@ -60,3 +60,12 @@
 - Known blockers: Android SDK/Android Studio remain unavailable in the environment; APK build and native Java compilation are unverified; mobile backend requires migration and separately authorized rollout; Android account, guest, messaging, attachments, Socket.IO and audio-call behavior need staging/device verification.
 - Latest relevant Git commit: `791fa09` (`feat(android): add rotating mobile authentication`); this milestone is ready for focused review; the Android SDK blocker prevents an APK build.
 - Next recommended action: complete build attempt, review/stage only this milestone, commit and push to `origin/feat/android-capacitor`; install Android Studio/SDK and validate on a staging device before any production rollout.
+
+### M4/M5 completion record
+
+- Commit: `02caddb` (`feat(android): wire secure mobile sessions`), pushed to `origin/feat/android-capacitor`.
+- Outcome: native Keystore-backed credential storage and mobile auth wiring are implemented in the repository. Android back/resume/pause hooks are in place, including ending audio calls on pause. Website auth remains on its prior cookie path.
+- Validation: final `npm run typecheck`, `npm run lint`, client focused tests (19 passed), full test suite (server 169 passed/59 skipped; client 203 passed), client production build, and Capacitor sync all passed. `git diff --check` passed.
+- APK status: `./gradlew assembleDebug` failed because the Android SDK is not installed/configured. No APK was produced.
+- GitHub status: commit pushed successfully to the Android repository branch. No upstream website changes were made.
+- Next recommended action: install/configure Android Studio and Android SDK, rebuild and install a debug APK, then validate auth, REST, Socket.IO, attachments, and audio calling against a staging backend after applying the reviewed migration in an isolated database.

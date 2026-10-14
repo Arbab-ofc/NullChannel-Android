@@ -42,7 +42,6 @@ tls-listening-port=5349
 min-port=49160
 max-port=49200
 fingerprint
-lt-cred-mech
 use-auth-secret
 static-auth-secret=<same value as TURN_SHARED_SECRET>
 realm=turn.example.com
@@ -50,14 +49,52 @@ cert=/etc/letsencrypt/live/turn.example.com/fullchain.pem
 pkey=/etc/letsencrypt/live/turn.example.com/privkey.pem
 no-cli
 no-multicast-peers
-no-loopback-peers
 ```
+
+Use `use-auth-secret` for the timestamped HMAC credentials returned by this backend;
+do not also select static-user `lt-cred-mech` authentication or configure `user=`
+accounts. Coturn enables the underlying long-term mechanism internally. See the
+[official configuration example](https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf).
+
+The installed coturn version has not been inspected on a live server. Verify the
+example against that version's packaged configuration/man page before activation.
+Modern coturn denies loopback peers by default: leave `allow-loopback-peers` disabled.
+Older versions may expose `no-loopback-peers`; use that option only if supported by
+the installed version. Do not blindly copy obsolete options into a current server.
 
 The TLS certificate must be valid for the TURN hostname and readable by coturn.
 Configure coturn to bind the correct public/private interface addresses if the
 host is behind NAT. Restrict peer destinations as appropriate to prevent relay
 abuse, and monitor allocation count, bandwidth, authentication failures, and
 expiry. Keep the static secret synchronized with the backend environment.
+
+## Native Android credential recovery
+
+Each native call caches its authenticated ICE response until 30 seconds before
+expiration. Concurrent requests share one refresh. Initial capture, caller restarts
+and receiver offers use the same call-scoped lease. Before answering an offer, the
+receiver fetches fresh credentials when necessary and applies ICE configuration to
+the existing peer before setting the remote description/creating its answer. Audio
+tracks and microphone ownership are preserved. Public STUN remains alongside TURN.
+
+Refresh runs outside the signaling owner thread. Hangup closes the lease; late results
+cannot configure media or answer for an ended/replaced owner. Native HTTP timeouts
+bound an already-running request even when cancellation cannot interrupt the socket.
+A receiver refresh/configuration failure ends the call safely instead of answering
+with expired credentials. Successful SDP processing retains revision and receipt rules.
+Automated tests use synthetic credentials and media; no live relay allocation or
+physical-device interoperability is implied.
+
+Local regression validation for this fix: six ICE lease tests cover expiration,
+concurrent refresh deduplication, failed refresh/retry, cancellation, STUN/TURN
+coexistence and invalid expiration. Five receiver Socket.IO regression tests cover
+configuration ordering, revision/receipt preservation, duplicate recovery offers,
+refresh/configuration failures and cancellation followed by a replacement owner.
+Android unit tests: 44 passed. Android lint and debug assembly passed (zero lint
+errors, 34 warnings). Backend/frontend tests passed: 216/232; 61 backend tests
+requiring opt-in database/browser infrastructure remained skipped. ESLint,
+TypeScript checks and `git diff --check` passed. No live coturn/provider/device
+verification was performed.
 
 After deployment, verify UDP, TCP, and TLS allocations from representative
 networks, then verify a two-device call with `iceTransportPolicy: all` and

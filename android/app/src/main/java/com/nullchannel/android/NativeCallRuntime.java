@@ -6,10 +6,14 @@ import org.json.*;
 import java.util.concurrent.CompletableFuture;
 /** Native dependencies are replaceable only from package-local framework tests. */
 class NativeCallRuntime {
+    // HTTP must not block the signaling owner: hangup remains responsive during refresh.
+    private static final java.util.concurrent.ExecutorService iceRequests = new java.util.concurrent.ThreadPoolExecutor(
+        2,2,30,java.util.concurrent.TimeUnit.SECONDS,new java.util.concurrent.ArrayBlockingQueue<>(8));
     boolean allowedBase(String base){return NativeCallAuth.validBase(base);}
     void startService(Context context,String id){if(androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED)throw new IllegalStateException("Microphone permission denied");androidx.core.content.ContextCompat.startForegroundService(context,new android.content.Intent(context,CallForegroundService.class).putExtra("callId",id));}
     JSONObject credentials(Context context,String base,String kind,boolean force)throws Exception{return NativeCallAuth.credentials(context,base,kind,force);}
     JSONObject get(Context context,String base,String kind,String path)throws Exception{return NativeCallAuth.request(base,path,"GET",credentials(context,base,kind,false).getString("accessToken"),null).getJSONObject("data");}
+    CompletableFuture<JSONObject> iceServers(Context context,String base,String kind,String room){return CompletableFuture.supplyAsync(()->{try{return get(context,base,kind,"/api/rooms/"+room+"/calls/ice-servers");}catch(Exception error){throw new java.util.concurrent.CompletionException(error);}},iceRequests);}
     Socket socket(String base,IO.Options options)throws Exception{return IO.socket(base,options);}
     CompletableFuture<Void> start(Context context,String id,String room,JSONArray ice,int connect,int disconnect){return NativePeer.start(context,id,room,ice,connect,disconnect);}
     CompletableFuture<Void> configure(String id,JSONArray ice){return NativePeer.configure(id,ice);}

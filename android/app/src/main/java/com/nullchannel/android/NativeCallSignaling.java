@@ -29,15 +29,16 @@ final class NativeCallSignaling {
     private boolean accepting;
     private boolean caller,ended,ready,negotiating,negotiated,mediaConnected,muted,reported;
     private int revision,remoteRevision,acknowledged,restarts,connectAttempts,stateVersion;
-    private long deadline,roomExpires,connectedAt,iceExpires,outageDeadline;
+    private long deadline,roomExpires,connectedAt,outageDeadline;
     private int connectMs=20000,disconnectMs=10000;
-    private JSONArray ice=new JSONArray();
+    private NativeIceCredentials iceCredentials;
     private ScheduledFuture<?> recovery,authJob,expiryJob;
     private CompletableFuture<JSONObject> started;
     private static final class Pending {String event;JSONObject data;int attempts;CompletableFuture<JSONObject> result=new CompletableFuture<>();ScheduledFuture<?> timeout;}
     private NativeCallSignaling(Context supplied,JSONObject options)throws Exception {
         context=supplied.getApplicationContext();base=options.getString("baseUrl");room=options.getString("roomCode");kind=options.optString("kind","guest");senderId=options.optString("senderId","");senderName=options.optString("senderName","Anonymous");
         if(!runtime.allowedBase(base)||!room.matches("[A-Z0-9]{8}"))throw new IllegalArgumentException("Invalid call destination");NativeCallAuth.key(kind);
+        iceCredentials=new NativeIceCredentials(System::currentTimeMillis,()->runtime.iceServers(context,base,kind,room));
     }
     static boolean owns(String id){NativeCallSignaling call=current;return call!=null&&!call.ended&&(id==null||id.isEmpty()||id.equals(call.id)||id.equals(call.ownershipId));}
     static JSONObject snapshot(){NativeCallSignaling call=current;return call==null?new JSONObject():call.view();}
@@ -91,14 +92,31 @@ final class NativeCallSignaling {
         if(event.equals("call:ice-candidate")){if(remoteIce.size()>=256){finish("failed","Voice candidate limit exceeded.",true);return;}if(remoteRevision!=rev||!NativePeer.callId.equals(id))remoteIce.add(data);else applyCandidate(data);policy.applied(signal);ackSignal(signal);return;}
         if(!event.equals("call:offer")&&!event.equals("call:answer"))return;if(negotiating){later(()->receive(event,data),100);return;}
         boolean offer=event.equals("call:offer");if(offer==caller||!NativeSignalPolicy.revisionAllowed(revision,rev,offer)){finish("failed","Invalid voice negotiation.",true);return;}negotiating=true;revision=rev;
-        startMedia().thenCompose(value->runtime.description(id,offer?"offer":"answer",rev,data.optString("sdp"))).whenComplete((sdp,error)->owner.execute(()->{if(ended)return;if(error!=null){finish("failed","Voice negotiation failed.",true);return;}remoteRevision=rev;negotiated=true;for(JSONObject candidate:new ArrayList<>(remoteIce))if(candidate.optInt("revision")==rev)applyCandidate(candidate);remoteIce.removeIf(candidate->candidate.optInt("revision")<=rev);policy.applied(signal);ackSignal(signal);
+        startMedia().thenComposeAsync(value->offer?configureIce():CompletableFuture.completedFuture(null),owner).thenComposeAsync(value->{ensureOwner();return runtime.description(id,offer?"offer":"answer",rev,data.optString("sdp"));},owner).whenComplete((sdp,error)->owner.execute(()->{if(ended)return;if(error!=null){finish("failed","Voice negotiation failed.",true);return;}remoteRevision=rev;negotiated=true;for(JSONObject candidate:new ArrayList<>(remoteIce))if(candidate.optInt("revision")==rev)applyCandidate(candidate);remoteIce.removeIf(candidate->candidate.optInt("revision")<=rev);policy.applied(signal);ackSignal(signal);
             if(offer)sendDescription("answer",rev,sdp);else{negotiating=false;reportConnected();}
         }));
     }
     private CompletableFuture<Void> mediaStart;
-    private CompletableFuture<Void> startMedia(){if(mediaStart!=null)return mediaStart;try{refreshIce();mediaStart=runtime.start(context,id,room,ice,connectMs,disconnectMs);mediaStart.whenComplete((value,error)->owner.execute(()->{if(error!=null&&!ended)finish("failed","Microphone/audio permission unavailable.",true);else if(caller&&ready&&!negotiated)offer(false);}));}catch(Exception error){mediaStart=new CompletableFuture<>();mediaStart.completeExceptionally(error);finish("failed","Secure voice settings unavailable.",true);}return mediaStart;}
-    private void refreshIce()throws Exception {if(iceExpires>System.currentTimeMillis()+30000)return;JSONObject config=get("/api/rooms/"+room+"/calls/ice-servers");ice=config.getJSONArray("iceServers");iceExpires=config.getLong("expiresAt")*1000;if(ice.length()==0)ice.put(object("urls","stun:stun.l.google.com:19302"));}
-    private void offer(boolean restart){if(ended||!caller||!ready||negotiating||revision!=remoteRevision||mediaStart==null)return;negotiating=true;int next=revision+1;try{if(restart)refreshIce();runtime.configure(id,ice).thenCompose(value->runtime.offer(id,next,restart)).whenComplete((sdp,error)->owner.execute(()->{if(ended)return;if(error!=null){negotiating=false;recover();return;}revision=next;acknowledged=0;if(restart)restarts++;sendDescription("offer",next,sdp);}));}catch(Exception unavailable){negotiating=false;recover();}}
+    private void ensureOwner(){if(ended||current!=this)throw new CancellationException("Call ended");}
+    private CompletableFuture<Void> startMedia(){
+        if(mediaStart!=null)return mediaStart;
+        mediaStart=iceCredentials.fresh().thenComposeAsync(servers->{ensureOwner();return runtime.start(context,id,room,servers,connectMs,disconnectMs);},owner);
+        mediaStart.whenComplete((value,error)->owner.execute(()->{if(ended||current!=this)return;if(error!=null)finish("failed","Secure voice or microphone settings unavailable.",true);else if(caller&&ready&&!negotiated)offer(false);}));
+        return mediaStart;
+    }
+    private CompletableFuture<Void> configureIce(){
+        ensureOwner();
+        return iceCredentials.fresh().thenComposeAsync(servers->{ensureOwner();return runtime.configure(id,servers);},owner);
+    }
+    private void offer(boolean restart){
+        if(ended||!caller||!ready||negotiating||revision!=remoteRevision||mediaStart==null)return;
+        negotiating=true;int next=revision+1;
+        configureIce().thenComposeAsync(value->{ensureOwner();return runtime.offer(id,next,restart);},owner).whenComplete((sdp,error)->owner.execute(()->{
+            if(ended||current!=this)return;
+            if(error!=null){negotiating=false;recover();return;}
+            revision=next;acknowledged=0;if(restart)restarts++;sendDescription("offer",next,sdp);
+        }));
+    }
     private void sendDescription(String type,int rev,String sdp){request("call:"+type,object("callId",id,"revision",rev,"sdp",sdp)).whenComplete((reply,error)->owner.execute(()->{if(ended)return;if(error!=null){negotiating=false;recover();return;}acknowledged=rev;negotiating=false;for(JSONObject item:new ArrayList<>(localIce))if(item.optInt("revision")==rev)sendIce(item);localIce.removeIf(item->item.optInt("revision")<=rev);if(type.equals("answer")){negotiating=false;negotiated=true;reportConnected();}}));}
     private void sendIce(JSONObject item){request("call:ice-candidate",object("callId",id,"revision",item.optInt("revision"),"candidate",item.optJSONObject("candidate"))).whenComplete((value,error)->owner.execute(()->{if(error!=null&&!ended)recover();}));}
     private void applyCandidate(JSONObject data){runtime.candidate(id,data.optJSONObject("candidate")).whenComplete((value,error)->owner.execute(()->{if(error!=null&&!ended)recover();}));}
@@ -110,7 +128,7 @@ final class NativeCallSignaling {
     private void answer(){if(ended||caller||accepting||!phase.equals("incoming"))return;if(androidx.core.content.ContextCompat.checkSelfPermission(context,android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){message="Microphone permission is required to answer.";publish();return;}accepting=true;publish();try{runtime.startService(context,id);validateInvitation();}catch(Exception expired){finish("ended","Invitation expired.",false);return;}NativeRingtones.stopFor(id);IncomingRingingService.stop(context,id);request("call:accept",object("callId",id)).whenComplete((reply,error)->owner.execute(()->{if(!ended&&error!=null)finish("failed","Call could not be answered.",true);}));}
     private void scheduleExpiry(){if(expiryJob!=null)expiryJob.cancel(false);long end=phase.equals("incoming")||phase.equals("outgoing")||phase.equals("ringing")?deadline:roomExpires; if(roomExpires>0)end=end>0?Math.min(end,roomExpires):roomExpires;if(end>0)expiryJob=owner.schedule(()->finish("ended","Call invitation or room expired.",true),Math.max(0,end-System.currentTimeMillis()),TimeUnit.MILLISECONDS);}
     private void terminate(String reason){String event=phase.equals("incoming")&&!accepting?"call:reject":"call:end";if(socket!=null&&socket.connected()&&!id.isEmpty())socket.emit(event,object("callId",id,"messageId",UUID.randomUUID().toString()));finish("ended",reason.equals("session-ended")?"Session expired.":"Call ended.",false);}
-    private void finish(String terminal,String text,boolean remote){if(ended)return;ended=true;phase=terminal;message=text;if(remote&&socket!=null&&socket.connected()&&!id.isEmpty())socket.emit("call:end",object("callId",id,"messageId",UUID.randomUUID().toString()));for(ScheduledFuture<?> timer:timers)timer.cancel(false);timers.clear();if(authJob!=null)authJob.cancel(false);if(recovery!=null)recovery.cancel(false);if(expiryJob!=null)expiryJob.cancel(false);if(networks!=null)networks.close();for(Pending item:pending.values()){if(item.timeout!=null)item.timeout.cancel(false);}for(Pending item:pending.values())item.result.completeExceptionally(new Exception("Call ended"));pending.clear();if(socket!=null){socket.off();socket.disconnect();socket.close();socket=null;}CallForegroundService.stop(context,id,ownershipId);if(id.equals(NativePeer.callId))runtime.end(context);IncomingRingingService.stop(context,id);NativeRingtones.stopFor(id);if(connectedAt>0)NativeRingtones.play(context,id+":ended","ended",System.currentTimeMillis()+500);NativeTelecom.end(id);androidx.core.app.NotificationManagerCompat.from(context).cancel(NativeNotifications.id(id));NativeVault.remove(context,"invitation."+id);publish();if(started!=null&&!started.isDone())started.completeExceptionally(new Exception(text));}
+    private void finish(String terminal,String text,boolean remote){if(ended)return;ended=true;iceCredentials.close();phase=terminal;message=text;if(remote&&socket!=null&&socket.connected()&&!id.isEmpty())socket.emit("call:end",object("callId",id,"messageId",UUID.randomUUID().toString()));for(ScheduledFuture<?> timer:timers)timer.cancel(false);timers.clear();if(authJob!=null)authJob.cancel(false);if(recovery!=null)recovery.cancel(false);if(expiryJob!=null)expiryJob.cancel(false);if(networks!=null)networks.close();for(Pending item:pending.values()){if(item.timeout!=null)item.timeout.cancel(false);}for(Pending item:pending.values())item.result.completeExceptionally(new Exception("Call ended"));pending.clear();if(socket!=null){socket.off();socket.disconnect();socket.close();socket=null;}CallForegroundService.stop(context,id,ownershipId);if(id.equals(NativePeer.callId))runtime.end(context);IncomingRingingService.stop(context,id);NativeRingtones.stopFor(id);if(connectedAt>0)NativeRingtones.play(context,id+":ended","ended",System.currentTimeMillis()+500);NativeTelecom.end(id);androidx.core.app.NotificationManagerCompat.from(context).cancel(NativeNotifications.id(id));NativeVault.remove(context,"invitation."+id);publish();if(started!=null&&!started.isDone())started.completeExceptionally(new Exception(text));}
     private synchronized JSONObject view(){return object("callId",id,"roomCode",room,"phase",phase,"peerName",peerName,"roomName",roomName,"muted",muted,"accepting",accepting,"connectedAt",connectedAt,"message",message,"revision",revision,"kind",kind,"owner","native","ownershipId",ownershipId);}
     private void publish(){NativeCallEvents.emit("native-call",js(view()));NativeIncomingCallActivity.changed();NativeTelecom.state(id,phase);}
     static JSObject js(JSONObject value){JSObject row=new JSObject();for(java.util.Iterator<String> keys=value.keys();keys.hasNext();){String key=keys.next();row.put(key,value.opt(key));}return row;}

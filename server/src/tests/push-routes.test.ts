@@ -21,4 +21,15 @@ describe('Android push registration and notification-action authorization',()=>{
  it('rejects incorrect device proofs and revoked sessions before actions',async()=>{expect((await request(app).post(path).set('Origin','https://localhost').send({roomCode:'TEST1234',callId:'call',action:'decline'})).status).toBe(401);fixture.valid=false;expect((await request(app).post(path).set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64)).send({roomCode:'TEST1234',callId:'call',action:'decline'})).status).toBe(401);expect(fixture.end).not.toHaveBeenCalled();});
  it('rejects lost room membership and expired invitations before decline/ringing actions',async()=>{fixture.member=false;expect((await request(app).post(path).set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64)).send({roomCode:'TEST1234',callId:'call',action:'decline'})).status).toBe(410);fixture.member=true;fixture.expired=true;expect((await request(app).post(path).set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64)).send({roomCode:'TEST1234',callId:'call',action:'ringing'})).status).toBe(410);expect(fixture.end).not.toHaveBeenCalled();expect(fixture.ringing).not.toHaveBeenCalled();});
  it('declines only an authorized live invitation',async()=>{expect((await request(app).post(path).set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64)).send({roomCode:'TEST1234',callId:'call',action:'decline'})).status).toBe(200);expect(fixture.end).toHaveBeenCalledWith('call','declined');});
+ it('rotates tokens only with the registered device proof',async()=>{
+  const token='fixture-rotated-token-long-enough';
+  expect((await request(app).post('/mobile/push/devices/device/token').set('Origin','https://localhost').send({token})).status).toBe(401);
+  expect((await request(app).post('/mobile/push/devices/device/token').set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64)).send({token})).status).toBe(200);
+  expect(fixture.register).toHaveBeenCalledWith('device',token,'b'.repeat(64),fixture.principal);
+ });
+ it('revokes a token only with the registered device proof',async()=>{
+  expect((await request(app).delete('/mobile/push/devices/device').set('Origin','https://localhost')).status).toBe(401);
+  expect((await request(app).delete('/mobile/push/devices/device').set('Origin','https://localhost').set('X-NC-Device-Secret','b'.repeat(64))).status).toBe(200);
+  expect(fixture.remove).toHaveBeenCalledWith('device');
+ });
 });

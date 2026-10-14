@@ -24,6 +24,12 @@ const base = {
 };
 
 describe('environment origin configuration', () => {
+  it('requires a valid explicit Firebase project only when push is enabled',()=>{
+    expect(parseEnvironment({...base,PUSH_ENABLED:'false'}).success).toBe(true);
+    expect(parseEnvironment({...base,PUSH_ENABLED:'true'}).success).toBe(false);
+    expect(parseEnvironment({...base,PUSH_ENABLED:'true',FIREBASE_PROJECT_ID:'invalid project'}).success).toBe(false);
+    const configured=parseEnvironment({...base,PUSH_ENABLED:'true',FIREBASE_PROJECT_ID:'fixture-project',PUSH_DEVICE_STORE_PATH:'/tmp/fixture.enc',PUSH_DEVICE_STORE_KEY:'a'.repeat(64),CALL_COORDINATION_MODE:'memory'});expect(configured.success).toBe(true);if(configured.success)expect(configured.data.CALL_COORDINATION_MODE).toBe('memory');
+  });
   it('requires an explicit exact mobile origin in production', () => {
     const result = parseEnvironment({ ...base, NODE_ENV: 'production' });
     expect(result.success).toBe(false);

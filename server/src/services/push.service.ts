@@ -2,8 +2,8 @@ import {RedisCallStore} from './call-coordination.js';
 import { createHash, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { firebasePushMessaging } from './firebase-admin.service.js';
+import { logger } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import { supabase } from '../config/supabase.js';
 import { getParticipantsForRoom, isActiveMember } from './membership.service.js';
@@ -100,15 +100,19 @@ export const pushDevices = new PushDevices();
 export const pushConfigured = () => env.PUSH_ENABLED === 'true';
 export async function deliverPush(records: PushDevice[], event: PushEvent) {
   if (!pushConfigured() || event.expiresAt<=Date.now()) return;
-  const app=getApps()[0]??initializeApp({credential:applicationDefault(),projectId:env.FIREBASE_PROJECT_ID});
+  if (!records.length) return;
+  const messaging = firebasePushMessaging();
+  if (!messaging) return;
   const sent=new Set<string>();
   for(const record of records) {
     if(sent.has(record.token))continue;sent.add(record.token);
     try {
-      await getMessaging(app).send({token:record.token,data:{...event,expiresAt:String(event.expiresAt),deviceId:record.deviceId},android:{priority:['incoming-call','call-ended'].includes(event.kind)?'high':'normal',ttl:Math.min(3600_000,event.expiresAt-Date.now()),collapseKey:event.callId??event.roomCode}});
+      const data = {eventId:event.eventId,kind:event.kind,roomCode:event.roomCode,expiresAt:String(event.expiresAt),deviceId:record.deviceId,...(event.callId?{callId:event.callId}:{})};
+      await messaging.send({token:record.token,data,android:{priority:['incoming-call','call-ended'].includes(event.kind)?'high':'normal',ttl:Math.min(3600_000,event.expiresAt-Date.now()),collapseKey:event.callId??event.roomCode}});
     } catch(error) {
       const code=(error as {code?:string}).code;
       if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(code??''))await pushDevices.remove(record.deviceId);
+      else logger.error('push_delivery_failed');
       // Never print provider errors: they can contain tokens or payload data.
     }
   }

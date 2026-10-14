@@ -1,3 +1,5 @@
+import { messageSocketNotifications } from '../services/message-notification.service.js';
+import { pushRoomEvent } from '../services/push.service.js';
 import { socketSessionValid } from './auth.js';
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
@@ -24,7 +26,7 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       if (['presence:heartbeat','presence:set'].includes(event) && socket.data.accountId) { next(); return; }
       if (socket.data.socialOnly) { socket.emit('socket-error',{code:'JOIN_REQUIRED',message:'Open an authorized room connection.'}); return; }
       const limits: Record<string, number> = { 'join-room': env.SOCKET_JOIN_LIMIT, 'send-message': env.SOCKET_MESSAGE_LIMIT, typing: env.SOCKET_TYPING_LIMIT, 'leave-room': 30 };
-      const calling = ['call:resume','call:invite','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end','call:connected','call:reconnecting'].includes(event);
+      const calling = ['call:received','call:ringing','call:resume','call:invite','call:accept','call:reject','call:offer','call:answer','call:ice-candidate','call:end','call:connected','call:reconnecting'].includes(event);
       if (calling && !allowEvent(`${socket.data.identity}:call-packets`,env.CALL_SIGNAL_LIMIT*2)) {
         const failure = { ok: false,code: 'RATE_LIMITED',message: 'Too many call events. Please wait.' };
         if (typeof acknowledgement === 'function') acknowledgement(failure);
@@ -106,6 +108,9 @@ export const registerRoomSocket = (io: Server, socket: Socket) => {
       });
 
       io.to(room.id).emit('receive-message', message);
+      const notificationExpiry=Math.min(Date.parse(room.expires_at),Date.parse(message.message_expires_at??room.expires_at),Date.now()+3600000);
+      void messageSocketNotifications(io,room,parsed.data.senderId,{eventId:message.id,expiresAt:notificationExpiry}).catch(()=>undefined);
+      void pushRoomEvent(room.id,{eventId:message.id,kind:'message',roomCode:room.code,expiresAt:notificationExpiry},undefined,parsed.data.senderId).catch(()=>undefined);
     } catch {
       socket.emit('socket-error', { code: 'SEND_FAILED', message: 'Message send failed.' });
     }

@@ -22,3 +22,8 @@ output/playwright/
 
 .playwright-cli/
 output/
+
+# Firebase/provider credentials are supplied locally or by the deploy operator.
+**/google-services.json
+**/*service-account*.json
+**/firebase-admin*.json

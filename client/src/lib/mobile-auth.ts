@@ -39,12 +39,14 @@ async function saveBundle(kind: Kind, bundle: TokenBundle): Promise<void> {
   if (!native()) throw new Error('Secure Android credential storage is unavailable.');
   await store.set({key:key(kind),value:JSON.stringify(bundle)});
   memory.set(kind, bundle);
+  if(typeof window!=='undefined')window.dispatchEvent(new Event('nullchannel-mobile-session-changed'));
 }
 
 export async function clearMobileCredentials(kind: Kind): Promise<void> {
   memory.delete(kind);
   if (!native()) return;
   await store.remove({key:key(kind)});
+  if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('nullchannel-mobile-session-ended',{detail:{kind}}));
 }
 
 async function refreshBundle(kind: Kind): Promise<TokenBundle | null> {

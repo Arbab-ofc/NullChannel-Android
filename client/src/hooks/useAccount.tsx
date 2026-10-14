@@ -1,3 +1,4 @@
+import {revokeNativeCalling} from '../lib/native-call-coordinator';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import axios from 'axios';
 import { accountApi, accountError, type Profile } from '../lib/account';
@@ -19,7 +20,7 @@ export function AccountProvider({children}: {children: ReactNode}) {
   },[]);
   useEffect(() => { void refresh(); },[refresh]);
   useEffect(() => {
-    const clear = () => { generation.current++; if(profileRef.current)disconnectSocket(); accountSocket.disconnect(); setProfile(null); setError('');setLoading(false);console.info('account_transition',{reason:'explicit_or_confirmed_session_end'}); };
+    const clear = () => { generation.current++; if(profileRef.current&&!isNativeMobile())disconnectSocket(); accountSocket.disconnect(); setProfile(null); setError('');setLoading(false);console.info('account_transition',{reason:'explicit_or_confirmed_session_end'}); };
     const changed = (event:StorageEvent) => { if(event.key==='nullchannel_account_event') { if(event.newValue?.startsWith('logout:'))clear();else void refresh(); } };
     window.addEventListener('storage',changed);window.addEventListener('nullchannel-account-expired',clear);
     return () => { window.removeEventListener('storage',changed);window.removeEventListener('nullchannel-account-expired',clear); };
@@ -34,7 +35,7 @@ export function AccountProvider({children}: {children: ReactNode}) {
     const resume=()=>{if(!document.hidden&&!accountSocket.connected)connectAccountSocket();};document.addEventListener('visibilitychange',resume);window.addEventListener('nullchannel-app-resume',resume);
     return () => { window.clearInterval(interval);document.removeEventListener('visibilitychange',resume);window.removeEventListener('nullchannel-app-resume',resume); accountSocket.off('connect',heartbeat); accountSocket.disconnect(); };
   },[username]);
-  const logout = async () => {const request=()=>isNativeMobile()?mobileLogout():accountApi.post('/account/logout');if(typeof navigator!=='undefined'&&navigator.locks)await navigator.locks.request('nullchannel-account-refresh',request);else await request();console.info('account_transition',{reason:'logout_confirmed'}); generation.current++;setError(''); setLoading(false); disconnectSocket(); accountSocket.disconnect(); setProfile(null); try{localStorage.setItem('nullchannel_account_event',`logout:${Date.now()}`);}catch{/* Server logout remains authoritative when storage is blocked. */} };
+  const logout = async () => {if(isNativeMobile())await revokeNativeCalling();const request=()=>isNativeMobile()?mobileLogout():accountApi.post('/account/logout');if(typeof navigator!=='undefined'&&navigator.locks)await navigator.locks.request('nullchannel-account-refresh',request);else await request();console.info('account_transition',{reason:'logout_confirmed'}); generation.current++;setError(''); setLoading(false); disconnectSocket(); accountSocket.disconnect(); setProfile(null); try{localStorage.setItem('nullchannel_account_event',`logout:${Date.now()}`);}catch{/* Server logout remains authoritative when storage is blocked. */} };
   return <Context.Provider value={{profile,loading,error,refresh,logout}}>{children}</Context.Provider>;
 }
 export function useAccount() { const value = useContext(Context); if (!value) throw new Error('AccountProvider required'); return value; }

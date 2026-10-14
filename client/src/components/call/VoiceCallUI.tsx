@@ -40,7 +40,7 @@ export const VoiceCallUI = ({ view, call, microphoneBusy }: { view: CallView; ca
     {view.accepting && <Button className="mt-3 min-h-11 w-full" onClick={() => call.end()}>Cancel</Button>}
   </dialog>;
   const active = callIsActive(view.phase);
-  const status: Record<string,string> = { outgoing: 'Calling…',connecting: 'Connecting voice…',connected: 'Voice Call Connected',reconnecting: 'Reconnecting call...',ended: 'Call ended',failed: 'Call failed' };
+  const status: Record<string,string> = { outgoing: 'Calling…',ringing:'Ringing…',connecting: 'Connecting voice…',connected: 'Voice Call Connected',reconnecting: 'Reconnecting call...',busy:'Peer busy',ended: 'Call ended',failed: 'Call failed' };
   return <section aria-label="Voice call" className="neo-panel mx-2 my-2 max-h-[40svh] shrink-0 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:mx-0 sm:p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0 flex-1"><p role="status" aria-live="polite" className="code-font text-sm text-cyan">{status[view.phase]}</p>
@@ -53,6 +53,10 @@ export const VoiceCallUI = ({ view, call, microphoneBusy }: { view: CallView; ca
         {active ? <Button className="min-h-12 border-punch px-3 text-punch" aria-label="End voice call" onClick={() => call.end()}><PhoneOff className="h-5 w-5" /></Button> : <Button className="min-h-12 px-3" aria-label="Dismiss call status" onClick={() => call.dismiss()}><X className="h-5 w-5" /></Button>}
       </div>
     </div>
+    {view.audioInterrupted && <p role="status" className="mt-2 text-sm text-muted">Call audio interrupted by another app. Waiting for audio focus.</p>}
+    {active && view.audioRoutes && <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">Audio output<select aria-label="Call audio output" value={view.selectedRoute??''} onChange={event=>void call.route(event.target.value)} className="min-h-11 border border-accent bg-bg p-2">{view.audioRoutes.map(route=><option key={route.id} value={route.id}>{route.label}</option>)}</select></label>}
+    {active && view.audioRoutes && <Button className="mt-2 min-h-11" onClick={()=>void call.enableBluetooth()}>Enable Bluetooth devices</Button>}
+    {active && view.message && <p role="status" className="mt-2 text-sm text-muted">{view.message}</p>}
     {view.playbackBlocked && <Button className="mt-3 min-h-12 w-full border-cyan" onClick={() => call.play()}>Tap to enable audio</Button>}
     {active && <p className="mt-2 text-xs text-muted">{view.phase === 'reconnecting' ? 'Network interrupted; attempting to reconnect.' : 'Audio only • No recording • Peers may see your network address'}</p>}
   </section>;

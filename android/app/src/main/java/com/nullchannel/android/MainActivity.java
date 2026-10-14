@@ -16,6 +16,7 @@ public class MainActivity extends BridgeActivity {
   public void onCreate(Bundle savedInstanceState) {
     SplashScreen.installSplashScreen(this);
     registerPlugin(SecureCredentialStorePlugin.class);
+    registerPlugin(NativeCallsPlugin.class);
     super.onCreate(savedInstanceState);
 
     // Keep edge-to-edge enabled on every supported Android version and use the
@@ -52,5 +53,17 @@ public class MainActivity extends BridgeActivity {
       return WindowInsetsCompat.CONSUMED;
     });
     ViewCompat.requestApplyInsets(content);
+    captureCallAction(getIntent());
   }
+  private void captureCallAction(android.content.Intent intent) {
+    if(intent==null)return;org.json.JSONObject proof=NativeVault.consumeAction(this,intent.getStringExtra("notificationNonce"));if(proof==null)return;String room=proof.optString("roomCode",null),id=proof.optString("callId",null),action=proof.optString("action","open");
+    if(room==null||!room.matches("[A-Z0-9]{8}"))return;
+    com.getcapacitor.JSObject value=new com.getcapacitor.JSObject().put("roomCode",room).put("callId",id).put("action",action==null?"open":action);
+    try{NativeVault.put(this,"launch.action",value.toString());}catch(Exception error){android.util.Log.w("NullChannel","Notification action storage unavailable");}
+    NativeCallEvents.emit("action",value);
+    intent.removeExtra("notificationNonce");intent.removeExtra("roomCode");intent.removeExtra("callId");intent.removeExtra("callAction");
+  }
+  @Override protected void onNewIntent(android.content.Intent intent){super.onNewIntent(intent);setIntent(intent);captureCallAction(intent);}
+  @Override public void onResume(){super.onResume();NativeNotifications.foreground=true;}
+  @Override public void onPause(){NativeNotifications.foreground=false;super.onPause();}
 }

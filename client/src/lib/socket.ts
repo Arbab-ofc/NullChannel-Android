@@ -34,3 +34,7 @@ export function isolatedRoomSocket(roomCode:string){
 }
 export function connectRoomTransport(peer:ReturnType<typeof io>){if(peer===socket)connectSocket();else roomTransports.get(peer)?.connect();}
 export function disconnectRoomTransport(peer:ReturnType<typeof io>){if(peer===socket){desired=false;if(retry)clearTimeout(retry);retry=null;peer.disconnect();}else{roomTransports.get(peer)?.disconnect();roomTransports.delete(peer);for(const [code,entry] of roomsByCode)if(entry===peer)roomsByCode.delete(code);}}
+
+const transportOwners=new Map<ReturnType<typeof io>,Set<string>>();
+export function retainTransport(peer:ReturnType<typeof io>,owner:string){const set=transportOwners.get(peer)??new Set<string>();set.add(owner);transportOwners.set(peer,set);}
+export function releaseTransport(peer:ReturnType<typeof io>,owner:string){const set=transportOwners.get(peer);if(!set)return;set.delete(owner);if(!set.size){transportOwners.delete(peer);disconnectRoomTransport(peer);}}

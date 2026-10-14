@@ -80,3 +80,5 @@ export const emitTemporaryRoomEvent = (roomId: string, event: 'poll:update' | 'm
 export const activeCallCount = (roomIds:string[]) => ioRef ? [...getCallRegistry(ioRef).calls.values()].filter(call => roomIds.includes(call.roomId)).length : 0;
 
 export const emitDirectoryUpdated = () => ioRef?.to('registered-directory').emit('directory:updated',{refresh:true});
+
+export const currentCallRegistry = () => ioRef ? getCallRegistry(ioRef) : null;

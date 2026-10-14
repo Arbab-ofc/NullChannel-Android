@@ -1,3 +1,5 @@
+import {useEffect} from 'react';
+import {updateNativeChatContext} from './lib/native-call-coordinator';
 import {PersistentCallTray} from './components/call/PersistentCallTray';
 import { LoadingSignal } from './components/common/LoadingSignal';
 import { RoomCreatedFeedback } from './components/immersive/RoomCreatedFeedback';
@@ -26,6 +28,7 @@ const MatchPage=lazy(()=>import('./pages/TemporaryPages').then(module=>({default
 const DocsPage=lazy(()=>import('./pages/DocsPage'));
 export default function App() {
   const location = useLocation();
+  useEffect(()=>{updateNativeChatContext(location.pathname.match(/^\/chat\/([A-Z0-9]{8})$/i)?.[1].toUpperCase()??'');},[location.pathname]);
   return <AccountProvider><ErrorBoundary key={location.pathname}><Suspense fallback={<main className="min-h-[60dvh] p-8"><LoadingSignal variant="page" label="Loading NullChannel"/></main>}><PageTransition><Routes>
     <Route path="/" element={<LandingPage />} />
     <Route path="/features" element={<LandingPage />} />

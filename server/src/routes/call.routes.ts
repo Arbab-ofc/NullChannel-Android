@@ -1,3 +1,4 @@
+import { currentCallRegistry } from '../sockets/emitter.js';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { createTurnCredential, env } from '../config/env.js';
@@ -8,7 +9,7 @@ import { errorResponse, successResponse } from '../utils/apiResponse.js';
 import { rateLimitHandler } from '../middlewares/rateLimit.middleware.js';
 
 const router = Router();
-const iceCredentialLimit = rateLimit({ handler: rateLimitHandler, windowMs: 60_000, limit: 12 });
+const iceCredentialLimit = rateLimit({ handler: rateLimitHandler, windowMs: 60_000, limit: 30, keyGenerator:(_req,res)=>String(res.locals.accountId??res.locals.identity) });
 
 router.get('/rooms/:code/calls/ice-servers', iceCredentialLimit, requireMembership, async (req, res, next) => {
   try {
@@ -24,4 +25,13 @@ router.get('/rooms/:code/calls/ice-servers', iceCredentialLimit, requireMembersh
   } catch (error) { next(error); }
 });
 
+router.get('/rooms/:code/calls/:callId/invitation',iceCredentialLimit,requireMembership,(req,res)=>{
+ const invitation=currentCallRegistry()?.invitation({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
+ if(!invitation||invitation.roomCode!==String(req.params.code).toUpperCase()){res.status(410).json(errorResponse('INVITATION_EXPIRED','This invitation has expired.'));return;}
+ res.json(successResponse({...invitation,protocol:2}));
+});
+router.get('/rooms/:code/calls/:callId/state',iceCredentialLimit,requireMembership,(req,res)=>{
+ const state=currentCallRegistry()?.authorizedSnapshot({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
+ if(!state){res.status(410).json(errorResponse('INVALID_CALL','Call ended.'));return;}res.json(successResponse(state));
+});
 export default router;

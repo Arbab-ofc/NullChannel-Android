@@ -35,10 +35,15 @@ const envSchema = z.object({
   TURN_URLS: z.string().optional(),
   TURN_SHARED_SECRET: z.string().min(32).optional(),
   TURN_CREDENTIAL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
+  PUSH_ENABLED: z.enum(['true','false']).default('false'),
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  PUSH_DEVICE_STORE_PATH: z.string().optional(),
+  PUSH_DEVICE_STORE_KEY: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   HOST: z.string().default('127.0.0.1'),
   FRIEND_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   CLEANUP_SECRET: z.string().optional()
 }).superRefine((value, context) => {
+  if (Boolean(value.PUSH_DEVICE_STORE_PATH) !== Boolean(value.PUSH_DEVICE_STORE_KEY)) context.addIssue({code:'custom',path:['PUSH_DEVICE_STORE_PATH'],message:'Encrypted push store path and key must be configured together.'});
   if (value.NODE_ENV === 'production' && !value.MOBILE_APP_ORIGIN) {
     context.addIssue({ code: 'custom', path: ['MOBILE_APP_ORIGIN'], message: 'MOBILE_APP_ORIGIN must be explicitly configured in production.' });
   }

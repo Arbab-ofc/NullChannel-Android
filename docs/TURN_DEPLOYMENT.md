@@ -63,3 +63,34 @@ After deployment, verify UDP, TCP, and TLS allocations from representative
 networks, then verify a two-device call with `iceTransportPolicy: all` and
 confirm a `relay` candidate pair in browser WebRTC diagnostics. VPNs and
 firewalls that block all configured TURN transports can still prevent calls.
+
+## Capacity and operator-only preparation
+
+The example relay range has 41 ports and is only an example for a small pilot.
+Choose the range from expected simultaneous allocations, including temporary ICE
+restart overlap, then verify allocation limits under load. Do not copy an
+undersized range into a production configuration.
+
+For planning only, if an audio stream including overhead uses 40–100 kbit/s in each
+direction, a relay accounts for roughly 1.2–3 MB per connected minute when both
+incoming and outgoing traffic are counted. This is arithmetic from an assumed
+bitrate, not a measurement; actual Opus bitrate, packet overhead, provider billing
+and retransmission change the result. Measure the selected deployment.
+
+Example preparation commands for an operator on a reviewed Debian/Ubuntu host
+(**not executed by this mission**, and not suitable for an unreviewed OS):
+
+```sh
+sudo apt-get update
+sudo apt-get install coturn
+openssl rand -hex 32
+```
+
+Installing the package may start a service. Review the installation procedure,
+package defaults, service identity, interface/NAT mapping and maintenance window
+before executing it. Place the generated secret in an operator-managed coturn
+configuration and backend secret store; never paste it into repository examples.
+Certificate provisioning, firewall/DNS changes and service activation require the
+operator's separate deployment authorization. A staging relay allocation test
+must verify temporary authentication, credential expiry, UDP/TCP/TLS, allowed peer
+destinations and selected `relay` candidates before any production rollout.

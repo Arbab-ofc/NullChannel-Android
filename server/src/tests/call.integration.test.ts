@@ -157,6 +157,19 @@ describe('authenticated real Socket.IO call signaling',() => {
     a.disconnect();await new Promise(resolve=>setTimeout(resolve,20));expect(registry.calls.has(id)).toBe(true);
     const replacement=await client(0);expect(await ack(replacement,'call:resume',{callId:id})).toMatchObject({ok:true});expect(await ack(replacement,'call:connected',{callId:id})).toMatchObject({ok:true});expect(registry.calls.get(id)?.caller.socketId).toBe(replacement.id);await ack(b,'call:end',{callId:id});expect(registry.calls.size).toBe(0);
   });
+  it('acknowledges idempotent signaling once, rejects changed replay and restores both-peer readiness',async()=>{
+    const [a,b]=await pair();const id=await invite(a,b);await ack(b,'call:accept',{callId:id});
+    const messageId=randomUUID(),offers:unknown[]=[];b.on('call:offer',value=>offers.push(value));
+    const offer={callId:id,messageId,revision:1,sdp};expect(await ack(a,'call:offer',offer)).toMatchObject({ok:true});expect(await ack(a,'call:offer',offer)).toMatchObject({ok:true});await new Promise(resolve=>setTimeout(resolve,10));expect(offers).toHaveLength(1);
+    expect(await ack(a,'call:offer',{...offer,sdp:sdp+'a=sendrecv\r\n'})).toMatchObject({ok:false});
+    const before=await ack(b,'call:resume',{callId:id,messageId:randomUUID()}) as unknown as {replay:Array<{signalId:string}>};expect(before.replay.some(signal=>signal.signalId===messageId)).toBe(true);
+    await ack(b,'call:received',{callId:id,signalId:messageId,messageId:randomUUID()});
+    await ack(b,'call:answer',{callId:id,revision:1,sdp,messageId:randomUUID()});await ack(a,'call:connected',{callId:id});await ack(b,'call:connected',{callId:id});
+    a.disconnect();b.disconnect();await new Promise(resolve=>setTimeout(resolve,20));const x=await client(0),y=await client(1);
+    const first=await ack(x,'call:resume',{callId:id,messageId:randomUUID()}) as unknown as {snapshot:{ready:{caller:boolean;callee:boolean}}};expect(first.snapshot.ready.caller).toBe(true);expect(first.snapshot.ready.callee).toBe(false);const deadline=registry.calls.get(id)!.deadline;const serverX=io.sockets.sockets.get(x.id!)!;registry.disconnected(serverX);expect(registry.calls.get(id)!.deadline).toBe(deadline);await ack(x,'call:resume',{callId:id,messageId:randomUUID()});
+    const second=await ack(y,'call:resume',{callId:id,messageId:randomUUID()}) as unknown as {snapshot:{ready:{caller:boolean;callee:boolean}},replay:Array<{signalId:string}>};expect(second.snapshot.ready).toEqual({caller:true,callee:true});expect(second.replay.some(signal=>signal.signalId===messageId)).toBe(false);
+    await ack(x,'call:connected',{callId:id});await ack(y,'call:connected',{callId:id});expect(registry.calls.get(id)?.status).toBe('connected');await ack(x,'call:end',{callId:id});
+  });
   it('bounds SDP and ICE payloads without retaining raw audio',() => {
     expect(audioSdp.safeParse('x'.repeat(50000)).success).toBe(false);
     expect(callIceSchema.safeParse({ callId: randomUUID(),revision: 1,candidate: { candidate: 'candidate:'+ 'x'.repeat(2048),sdpMid: '0',sdpMLineIndex: 0 } }).success).toBe(false);

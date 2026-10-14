@@ -26,6 +26,9 @@ import { mergeHistory } from '../lib/messages';
 import { api } from '../lib/api';
 import { useVoiceCall } from '../hooks/useVoiceCall';
 import { VoiceCallButton, VoiceCallUI } from '../components/call/VoiceCallUI';
+import { hasActiveCall } from '../lib/active-calls';
+import { nativeAndroid } from '../lib/native-calls';
+import { acquireMicrophone,releaseMicrophone } from '../lib/call-ownership';
 import { callIsActive } from '../lib/voice-call';
 import { useSocket } from '../hooks/useSocket';
 import { useLocalSender } from '../hooks/useLocalSender';
@@ -116,6 +119,7 @@ export default function ChatPage() {
   const lastTypingAt = useRef(0);
   const redirectTimeout = useRef<number | null>(null);
   const toastTimeout = useRef<number | null>(null);
+  const recordingEpoch=useRef(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const voiceChunksRef = useRef<BlobPart[]>([]);
@@ -148,6 +152,7 @@ export default function ChatPage() {
 
   const { call: voiceCall, view: voiceView } = useVoiceCall(socket,code.toUpperCase(),!!room && room.room_type === 'private' && isJoined && !expiredNotice,room?.expires_at,pageState==='ready');
 
+  useEffect(()=>{voiceCall.setJoinInfo(senderId,senderName,room?.room_kind&&room.room_kind!=='guest'?'account':'guest');},[voiceCall,senderId,senderName,room?.room_kind]);
   useEffect(() => { if (voiceView.phase === 'incoming') { setExtendModalOpen(false); setMenuOpen(false); setAttachmentSheet(false); setMessageMenuId(null); } },[voiceView.phase]);
 
   const loadHistory = useCallback(async (roomCode: string) => {
@@ -250,9 +255,9 @@ export default function ChatPage() {
     if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
     if (recordingInterval.current) window.clearInterval(recordingInterval.current);
     if (recordingLimitTimeout.current) window.clearTimeout(recordingLimitTimeout.current);
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingEpoch.current++;releaseMicrophone(`record:${code}`);mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     Object.values(typingTimeouts.current).forEach(id => window.clearTimeout(id));
-  }, []);
+  }, [code]);
 
   useEffect(() => {
     if (!room) return;
@@ -609,13 +614,16 @@ export default function ChatPage() {
   };
 
   const startVoiceRecording = async () => {
-    if (!room || !isJoined || !senderName || recordingVoice || uploadingVoice || callIsActive(voiceView.phase)) return;
+    if (!room || !isJoined || !senderName || recordingVoice || uploadingVoice || hasActiveCall()) return;
+    if(!acquireMicrophone(`record:${code}`))return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      showToast('Voice recording unsupported');
+      releaseMicrophone(`record:${code}`);showToast('Voice recording unsupported');
       return;
     }
+    const epoch=recordingEpoch.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if(epoch!==recordingEpoch.current){stream.getTracks().forEach(track=>track.stop());releaseMicrophone(`record:${code}`);return;}
       const recorder = new MediaRecorder(stream);
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
@@ -629,7 +637,7 @@ export default function ChatPage() {
       recorder.onstop = () => {
         const blob = new Blob(voiceChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         voiceChunksRef.current = [];
-        setRecordingVoice(false);
+        releaseMicrophone(`record:${code}`);setRecordingVoice(false);
         setRecordingSeconds(0);
         if (recordingInterval.current) window.clearInterval(recordingInterval.current);
         if (recordingLimitTimeout.current) window.clearTimeout(recordingLimitTimeout.current);
@@ -646,7 +654,7 @@ export default function ChatPage() {
       }, 500);
       recordingLimitTimeout.current = window.setTimeout(stopVoiceRecording, VOICE_MAX_MS);
     } catch {
-      showToast('Mic permission denied');
+      releaseMicrophone(`record:${code}`);showToast('Mic permission denied');
     }
   };
 
@@ -994,7 +1002,7 @@ export default function ChatPage() {
             <p className="code-font mt-1 text-[10px] tracking-widest sm:text-sm">CHANNEL ID: {room.code}</p>
           </div>
           <div className="chat-header__actions">
-            {room.room_type === 'private' && <VoiceCallButton view={voiceView} available={participants.some(member => member.sender_id !== senderId && member.online === true)} disabled={!isJoined || recordingVoice || uploadingVoice || !connected} start={() => void voiceCall.invite()} />}
+            {room.room_type === 'private' && <VoiceCallButton view={voiceView} available={participants.some(member => member.sender_id !== senderId && (nativeAndroid() || member.online === true))} disabled={!isJoined || recordingVoice || uploadingVoice || !connected || hasActiveCall()} start={() => void voiceCall.invite()} />}
             <ExpiryCountdown expiresAt={room.expires_at} createdAt={room.created_at}/>
             <button type="button" className="chat-menu-toggle neo-action xl:hidden" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle chat menu" aria-expanded={menuOpen} aria-controls="chat-command-center"><Menu className="h-5 w-5" /></button>
           </div>
@@ -1361,7 +1369,7 @@ export default function ChatPage() {
             className={`composer-action-button composer-action-button--voice ${recordingVoice ? 'is-recording' : ''}`}
             onClick={recordingVoice ? stopVoiceRecording : startVoiceRecording}
             aria-label={callIsActive(voiceView.phase) ? 'Voice recording unavailable during a call' : 'Record voice message'}
-            disabled={!isJoined || uploadingVoice || callIsActive(voiceView.phase)}
+            disabled={!isJoined || uploadingVoice || hasActiveCall()}
           >
             {recordingVoice ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             <span className="composer-label">{recordingVoice ? 'Stop' : uploadingVoice ? 'Uploading' : 'Voice'}</span>

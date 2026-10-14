@@ -1,8 +1,13 @@
 # Private-room voice calling
 
-This feature adds native browser WebRTC audio to exactly two authenticated members of an existing private room. No camera, screen sharing, recording, permanent call history, audio upload or database migration is added. Group rooms have no call button and the server rejects calls from them.
+This feature adds browser and Android native WebRTC audio to exactly two authenticated members of an existing private room. No camera, screen sharing, recording, permanent call history, audio upload or database migration is added. Group rooms have no call button and the server rejects calls from them.
 
 ## Architecture
+
+For current Android notification, native media/audio and background limitations, see
+[ANDROID_NATIVE_CALLING.md](ANDROID_NATIVE_CALLING.md) and
+[ANDROID_CALLING_ROLLOUT.md](ANDROID_CALLING_ROLLOUT.md). Historical browser verification
+below describes its original feature release; use the rollout document for this branch.
 
 ```mermaid
 sequenceDiagram
@@ -37,7 +42,7 @@ The caller is the sole offerer, including ICE restarts. SDP/candidates carry a b
 
 ## User interface
 
-Private-room headers show a phone button only when the user has joined. Availability requires the other member to be online. The button is disabled while the identity's current tab is calling or while a voice message is recording/uploading. Server-side busy locks also protect other tabs and rooms.
+Private-room headers show a phone button only when the user has joined. Website availability requires the other member to be online. Android can invite a registered push device or authenticated global invitation transport outside the room page. The button is disabled while the identity's current tab is calling or while a voice message is recording/uploading. Server-side busy locks also protect other tabs and rooms.
 
 The incoming native dialog names the caller and room, traps keyboard focus, and provides Accept/Decline. No microphone is requested for notification or rejection. Acceptance requests processed audio with video explicitly disabled. Outgoing users acquire their microphone only after the invitation is accepted. A pending permission prompt can be cancelled; a stream returned later is immediately stopped.
 
@@ -60,7 +65,7 @@ TURN is optional infrastructure. Without it the client uses configured public ST
 | CALL_DISCONNECT_GRACE_MS | Backend | 10000 | 1000–30000; ICE recovery grace |
 | CALL_INVITE_LIMIT | Backend | 6 | 1–30 invitation events per authenticated identity/minute |
 | CALL_SIGNAL_LIMIT | Backend | 300 | 1–1000 events per event type/identity/minute; total calling packets limited to twice this before session DB access |
-| CALL_MAX_CANDIDATES | Backend | 256 | 16–512 candidates per participant for the entire call, across revisions |
+| CALL_MAX_CANDIDATES | Backend | 256 | 16–512 candidates per participant per negotiation revision |
 | CALL_MAX_ACTIVE | Backend | 1000 | 1–10000 simultaneous registry entries; choose a smaller cap if required by load testing |
 
 The server supplies timeout settings in the invitation/outgoing event so both browser engines use the configured deadlines. Frontend queues independently cap candidates at 256. ICE candidates received before remote SDP are buffered. ICE gathering completion alone does not fail a call; connection deadlines and ICE state transitions own failure/recovery. The authenticated ICE server endpoint is `GET /api/rooms/:code/calls/ice-servers`; it checks room membership and limits requests. If TURN is not configured, it returns no relay server. The client falls back to STUN/host candidates if the endpoint is unavailable, preserving compatibility while the backend is upgraded.
@@ -83,15 +88,15 @@ Every request supports a Socket.IO acknowledgment `{ ok: true, callId? }` or `{ 
 | call:reconnecting | callId | Initiates one grace deadline and notifies both; repeated recovery reports are safe |
 | call:end | callId | call:ended; repeated termination of an already removed call is safe |
 
-`call:timeout` communicates no-answer; `call:error` and `call:busy` provide sanitized failures. SDP is limited to 48 KiB and permits one encrypted audio media section only. ICE text is limited to 2048 characters; fields, index, revision and IDs are validated with strict Zod objects. Only revisions 1–5 are permitted. Unknown call events fail the existing packet whitelist. Sender/recipient/socket IDs submitted by a client are never identity evidence.
+`call:timeout` communicates no-answer; `call:error` and `call:busy` provide sanitized failures. SDP is limited to 48 KiB and permits one encrypted audio media section only. ICE text is limited to 2048 characters; fields, index, revision and IDs are validated with strict Zod objects. Revisions 1–10000 are permitted; recovery attempts are bounded per outage. Unknown call events fail the existing packet whitelist. Sender/recipient/socket IDs submitted by a client are never identity evidence.
 
 ## Security and lifecycle
 
 Each packet retains existing session expiry/revocation checks. Each operation rechecks live private-room membership. Target socket/session binding is checked; recipient sessions are verified before ringing, and bound peer sessions are verified during signaling. Exactly two distinct active members are required. Both identity locks are acquired synchronously after asynchronous validation, preventing crossing invitations from creating two calls. Outstanding authorization work is capped at 64; maps/candidate queues and lifetime timers are bounded.
 
-Room expiry has its own exact deadline, independently of the scheduled cleanup worker. Room extension updates that deadline. Termination and membership revocation release calls through existing emitter hooks. Socket loss/session disconnection, pagehide, navigation, React unmount, timeout, microphone loss, negotiation failure and hangup all close local resources. Microphone promises cannot be cancelled by the browser API, but their eventual streams are stopped when the call is already closed.
+Room expiry has its own exact deadline, independently of the scheduled cleanup worker. Room extension updates that deadline. Termination and membership revocation release calls through existing emitter hooks. Session expiry, room expiry, timeout, microphone loss, unrecoverable negotiation failure and hangup close resources. Socket loss enters bounded recovery; Android navigation and Activity pause preserve the globally owned call. Website pagehide ends its call. Microphone promises cannot be cancelled by the browser API, but their eventual streams are stopped when the call is already closed.
 
-A WebRTC connection loss tries a deterministic caller ICE restart within the grace window. A Socket.IO disconnect ends the call immediately: after chat reconnects/rejoins, users intentionally start a new call. Calls are not automatically resumed after refresh or backend restart. No call data survives the process. This is a single-instance design; multi-instance deployment needs coordinated call locks, routing and lifecycle state.
+A WebRTC connection loss tries a deterministic caller ICE restart within the grace window. Socket.IO reconnect reconciles authorized snapshots, participant readiness and bounded signal replay before renegotiation. Android Activity recreation can reattach to a process-owned native peer using the same mobile session. Backend restart or Android process death does not restore media. This is a single-instance design; multi-instance deployment needs coordinated call locks, routing and lifecycle state.
 
 ## Privacy and network limits
 

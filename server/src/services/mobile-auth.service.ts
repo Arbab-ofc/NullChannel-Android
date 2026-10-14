@@ -87,3 +87,10 @@ export async function mobileAccountActive(accountId: string): Promise<boolean> {
   if (error) throw error;
   return !!data && !data.deletion_pending;
 }
+
+/** A push subscription is bound to the refresh lease, not a ten-minute API token.
+ * This grants notification verification only; it never authenticates call SDP. */
+export async function verifyPushSession(id: string): Promise<MobilePrincipal | null> {
+  const {data,error}=await supabase.from('mobile_auth_sessions').select('id,account_id,identity_id').eq('id',id).is('revoked_at',null).gt('refresh_expires_at',new Date().toISOString()).maybeSingle();
+  if(error)throw error; return data?{id:data.id,accountId:data.account_id,identityId:data.identity_id}:null;
+}

@@ -32,7 +32,7 @@ export const createSocketServer = (server: HttpServer) => {
   io.use(async (socket, next) => {
     try {
       if(socket.handshake.headers.origin===env.MOBILE_APP_ORIGIN){
-        const auth=socket.handshake.auth as {accountToken?:unknown;guestToken?:unknown;roomCode?:unknown};
+        const auth=socket.handshake.auth as {accountToken?:unknown;guestToken?:unknown;roomCode?:unknown;globalCalls?:unknown};
         const roomCode=typeof auth.roomCode==='string'?auth.roomCode.toUpperCase():'';
         const account=await verifyMobileAccess(auth.accountToken);
         if(account?.accountId&&await mobileAccountActive(account.accountId)){
@@ -44,6 +44,7 @@ export const createSocketServer = (server: HttpServer) => {
             socket.data.accountId=account.accountId;socket.data.mobileSessionId=account.id;socket.data.identity=mapping.data.sender_id;socket.data.alias=mapping.data.alias;socket.data.roomRole=mapping.data.role;socket.data.accountRoom=room.id;next();return;
           }
         }
+        if(!roomCode&&auth.globalCalls===true){const guest=await verifyMobileAccess(auth.guestToken);if(guest?.identityId){socket.data.identity=guest.identityId;socket.data.mobileSessionId=guest.id;socket.data.globalCalls=true;next();return;}}
         if(!roomCode)return next(new Error('SESSION_EXPIRED'));
         const guest=await verifyMobileAccess(auth.guestToken);
         if(guest?.identityId){socket.data.identity=guest.identityId;socket.data.mobileSessionId=guest.id;next();return;}
@@ -71,6 +72,7 @@ export const createSocketServer = (server: HttpServer) => {
   });
 
   io.on('connection', (socket) => {
+    if(socket.data.globalCalls)void socket.join(`identity:${socket.data.identity}`);
     if (socket.data.accountId) void attachAccountPresence(io,socket,socket.data.accountId).catch(() => socket.disconnect(true));
     const sessionWatch = setInterval(async () => {
       try {

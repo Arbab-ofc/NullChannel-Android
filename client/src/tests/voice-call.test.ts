@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { Socket } from 'socket.io-client';
 import { AudioPeer, iceConfiguration, microphoneError,type AudioCallbacks } from '../lib/webrtc';
 import { VoiceCall, callTransitions } from '../lib/voice-call';
+vi.mock('../lib/api',()=>({api:{get:vi.fn(async()=>({data:{data:{iceServers:[],expiresAt:Math.floor(Date.now()/1000)+3600}}}))}}));
 class Peer {
   static last: Peer;
   localDescription: RTCSessionDescriptionInit | null = null;
@@ -79,6 +80,9 @@ describe('browser audio engine',() => {
     Peer.last.connectionState = 'disconnected'; Peer.last.onconnectionstatechange!(); await Promise.resolve(); await Promise.resolve();
     expect(cb.state).toHaveBeenCalledWith('reconnecting'); await vi.advanceTimersByTimeAsync(11); expect(cb.error).toHaveBeenCalled();
   });
+  it('does not arm a media failure timer when resuming healthy audio',async()=>{
+    vi.useFakeTimers();const cb=callbacks(),peer=new AudioPeer(true,cb,{}, {ringMs:30000,connectMs:20000,disconnectMs:10000});await peer.offer();Peer.last.connectionState='connected';Peer.last.onconnectionstatechange!();peer.recover();await vi.advanceTimersByTimeAsync(10001);expect(cb.error).not.toHaveBeenCalled();expect(cb.description).toHaveBeenCalledTimes(1);peer.close();
+  });
   it('allows recovery after a transient connection restores without new SDP',async () => {
     const cb = callbacks(); const peer = new AudioPeer(true,cb); await peer.offer();
     const pc = Peer.last;
@@ -129,7 +133,7 @@ describe('frontend call state and signaling lifecycle',() => {
     vi.useFakeTimers();const s=signaling();const cb={current:null as AudioCallbacks|null};
     const engine={offer:vi.fn(async()=>{}),close:vi.fn(),recover:vi.fn(),connected:true} as unknown as AudioPeer;
     const call=new VoiceCall(s.socket,'TEST1234',(_caller,callbacks)=>{cb.current=callbacks;return engine;});call.attach();await call.invite();s.emit('call:outgoing',{callId:'id',roomCode:'TEST1234'});s.emit('call:accepted',{callId:'id'});await vi.waitFor(()=>expect(cb.current).not.toBeNull());cb.current!.state('connected');
-    s.socket.connected=false;s.emit('disconnect','transport close');expect(call.snapshot().phase).toBe('reconnecting');expect(engine.close).not.toHaveBeenCalled();s.socket.connected=true;s.emit('room-joined',{code:'TEST1234'});await Promise.resolve();await Promise.resolve();await Promise.resolve();expect(s.send).toHaveBeenCalledWith('call:resume',{callId:'id'},expect.any(Function));expect(call.snapshot().phase).toBe('connected');
+    s.socket.connected=false;s.emit('disconnect','transport close');expect(call.snapshot().phase).toBe('reconnecting');expect(engine.close).not.toHaveBeenCalled();s.socket.connected=true;s.emit('room-joined',{code:'TEST1234'});await vi.waitFor(()=>expect(call.snapshot().phase).toBe('connected'));expect(s.send).toHaveBeenCalledWith('call:resume',{callId:'id'},expect.any(Function));expect(call.snapshot().phase).toBe('connected');
     await vi.advanceTimersByTimeAsync(15*60*1000);expect(engine.close).not.toHaveBeenCalled();s.socket.connected=false;s.emit('disconnect','transport close');await vi.advanceTimersByTimeAsync(10001);expect(call.snapshot().phase).toBe('failed');expect(engine.close).toHaveBeenCalledOnce();call.dispose();
   });
   it('dismisses missed calls and ignores unrelated signaling',() => {

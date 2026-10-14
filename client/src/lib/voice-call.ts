@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io-client';
-import { AudioPeer, CALL_DEFAULTS, microphoneError, NETWORK_FAILURE } from './webrtc';
+import { AudioPeer, CALL_DEFAULTS, iceConfiguration, microphoneError, NETWORK_FAILURE } from './webrtc';
+import { api } from './api';
 
 export type CallPhase = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'connected' | 'reconnecting' | 'ended' | 'failed';
 export type CallView = { visibleRoom?:boolean;phase: CallPhase; callId: string | null; peerName: string; roomName: string; muted: boolean; playbackBlocked: boolean; connectedAt: number | null; message: string; accepting: boolean };
@@ -25,7 +26,7 @@ export class VoiceCall {
   private generation = 0;
   private timeouts = CALL_DEFAULTS;
   constructor(private socket: Socket, readonly roomCode: string,
-    private peerFactory: (caller: boolean, callbacks: ConstructorParameters<typeof AudioPeer>[1], timeouts: typeof CALL_DEFAULTS) => AudioPeer = (caller,callbacks,timeouts) => new AudioPeer(caller,callbacks,undefined,timeouts)) {}
+    private peerFactory: (caller: boolean, callbacks: ConstructorParameters<typeof AudioPeer>[1], timeouts: typeof CALL_DEFAULTS, config: RTCConfiguration) => AudioPeer = (caller,callbacks,timeouts,config) => new AudioPeer(caller,callbacks,config,timeouts)) {}
   get signalingSocket(){return this.socket;}
   snapshot = () => this.view;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -68,8 +69,12 @@ export class VoiceCall {
       if (payload.callId !== this.view.callId || !['incoming','outgoing'].includes(this.view.phase)) return;
       this.transition('connecting',{ accepting: false });
       if (this.caller) {
-        try { this.engine = this.createPeer(); const engine = this.engine; void engine.offer().catch(error => { if (this.engine === engine) this.fail(microphoneError(error)); }); }
-        catch (error) { this.fail(microphoneError(error)); }
+        const generation = this.generation;
+        void this.loadIceConfiguration().then(config => {
+          if (this.disposed || this.generation !== generation || this.view.callId !== payload.callId) return;
+          this.engine = this.createPeer(config); const engine = this.engine;
+          return engine.offer().catch(error => { if (this.engine === engine) this.fail(microphoneError(error)); });
+        }).catch(error => { if (this.generation === generation) this.fail(microphoneError(error)); });
       }
     });
     on<{ callId: string; revision: number; sdp: string }>('call:offer',payload => this.description('offer',payload));
@@ -125,7 +130,9 @@ export class VoiceCall {
     const id = this.view.callId; const generation = this.generation;
     this.update({ accepting: true });
     try {
-      this.engine = this.createPeer(); const peer = this.engine;
+      const config = await this.loadIceConfiguration();
+      if (this.disposed || this.generation !== generation || this.view.callId !== id) return;
+      this.engine = this.createPeer(config); const peer = this.engine;
       await peer.start();
       if (this.disposed || this.generation !== generation || this.view.callId !== id) { peer.close(); return; }
       await this.request('call:accept',{ callId: id });
@@ -137,7 +144,23 @@ export class VoiceCall {
     this.finish('ended','Call declined.');
     try { await this.request('call:reject',{ callId: id }); } catch { /* The server also expires the invitation. */ }
   }
-  private createPeer() {
+  private async loadIceConfiguration(): Promise<RTCConfiguration> {
+    const fallback = iceConfiguration();
+    let servers: unknown;
+    try {
+      const response = await api.get(`/rooms/${this.roomCode}/calls/ice-servers`);
+      servers = response.data?.data?.iceServers;
+    } catch (error) {
+      // Compatibility with an older server deployment: retain public STUN and
+      // host candidates until the authenticated relay endpoint is deployed.
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404 || status === undefined) return fallback;
+      throw new Error('Secure voice relay settings could not be loaded. Please retry.');
+    }
+    if (!Array.isArray(servers)) throw new Error('Secure voice relay settings are invalid. Please retry.');
+    return iceConfiguration(undefined, servers as RTCIceServer[]);
+  }
+  private createPeer(config: RTCConfiguration) {
     const id = this.view.callId; const generation = this.generation;
     const current = () => !this.disposed && this.view.callId === id && this.generation === generation;
     return this.peerFactory(this.caller,{
@@ -148,7 +171,7 @@ export class VoiceCall {
         this.transition(phase,{ connectedAt: phase === 'connected' ? this.view.connectedAt ?? Date.now() : this.view.connectedAt });
         if(this.socket.connected)void this.request(`call:${phase}`,{ callId: id }).catch(() => { if (current()&&this.socket.connected) this.fail('Voice signaling was interrupted. Please call again.'); });
       }, error: message => { if (current()) this.fail(message); }, playback: blocked => { if (current()) this.update({ playbackBlocked: blocked }); }
-    },this.timeouts);
+    },this.timeouts,config);
   }
   private description(kind: 'offer' | 'answer',payload: { callId: string; revision: number; sdp: string }) {
     if (payload.callId !== this.view.callId || !this.engine) return;

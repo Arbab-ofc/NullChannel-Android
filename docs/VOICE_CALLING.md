@@ -47,11 +47,14 @@ The controls reuse the existing Button, colors and panel styles. They have visib
 
 ## Configuration
 
-No required credential or provider is added. Existing backend environment and production microphone permission policy continue to apply. Defaults work without TURN infrastructure.
+TURN is optional infrastructure. Without it the client uses configured public STUN and host candidates; restrictive NATs may still fail. When coturn is configured, authenticated members request short-lived relay credentials from the backend. Android microphone permission remains governed by the installed application permission prompt.
 
 | Variable | Scope | Default | Validation / purpose |
 |---|---|---|---|
-| VITE_WEBRTC_STUN_URLS | Public frontend build value | stun:stun.l.google.com:19302 | Comma-separated stun:/stuns: host URLs, up to eight; empty uses host candidates only. No username/password/TURN credentials accepted. |
+| VITE_WEBRTC_STUN_URLS | Public frontend build value | stun:stun.l.google.com:19302 | Comma-separated stun:/stuns: host URLs, up to eight; empty uses host candidates only. Never put TURN credentials here. |
+| TURN_URLS | Backend | unset | Comma-separated `turn:` / `turns:` URLs; supports UDP, TCP and TLS URLs. |
+| TURN_SHARED_SECRET | Backend secret | unset | Coturn `static-auth-secret`; required with TURN_URLS and never returned to clients. |
+| TURN_CREDENTIAL_TTL_SECONDS | Backend | 3600 | Short-lived coturn credential lifetime; 60–86400 seconds. |
 | CALL_RING_TIMEOUT_MS | Backend | 30000 | 1000–60000; no-answer/missed-call timeout |
 | CALL_CONNECT_TIMEOUT_MS | Backend | 20000 | 1000–60000; accepted call connection deadline |
 | CALL_DISCONNECT_GRACE_MS | Backend | 10000 | 1000–30000; ICE recovery grace |
@@ -60,7 +63,7 @@ No required credential or provider is added. Existing backend environment and pr
 | CALL_MAX_CANDIDATES | Backend | 256 | 16–512 candidates per participant for the entire call, across revisions |
 | CALL_MAX_ACTIVE | Backend | 1000 | 1–10000 simultaneous registry entries; choose a smaller cap if required by load testing |
 
-The server supplies timeout settings in the invitation/outgoing event so both browser engines use the configured deadlines. Frontend queues independently cap candidates at 256. Unsupported/invalid frontend STUN configuration produces an actionable calling failure rather than crashing chat.
+The server supplies timeout settings in the invitation/outgoing event so both browser engines use the configured deadlines. Frontend queues independently cap candidates at 256. ICE candidates received before remote SDP are buffered. ICE gathering completion alone does not fail a call; connection deadlines and ICE state transitions own failure/recovery. The authenticated ICE server endpoint is `GET /api/rooms/:code/calls/ice-servers`; it checks room membership and limits requests. If TURN is not configured, it returns no relay server. The client falls back to STUN/host candidates if the endpoint is unavailable, preserving compatibility while the backend is upgraded.
 
 For local development, use Node 22.12+ (verification used 22.18.0), `npm ci`, and the existing `npm run dev`. Use deliberately selected disposable provider credentials for general app development; no production credentials are necessary for the automated call tests. Microphone access requires HTTPS or a browser-trusted localhost origin. A non-loopback HTTP LAN address usually cannot access the microphone.
 
@@ -96,7 +99,7 @@ WebRTC audio transport is encrypted with DTLS-SRTP, as implemented by the browse
 
 STUN does not relay media. Symmetric NATs, enterprise/mobile firewalls and blocked UDP can prevent calls. The UI reports this on connection/grace timeout. Cloudflare Tunnel proxies signaling but does not supply arbitrary WebRTC UDP relay service. Restricted inbound networking on the VPS is compatible with direct browser-to-browser media; it does not guarantee those browsers can reach one another.
 
-TURN is intentionally not implemented. No paid service, fake relay, static TURN credential or additional VPS UDP port is required. Stronger peer-IP privacy and restrictive-network reliability require a genuine relay later, preferably via an authenticated short-lived credential endpoint and a relay-only option. Permanent TURN secrets must never be placed in VITE variables or bundles.
+TURN client integration and short-lived credential issuance are implemented, but coturn is not installed or deployed here. Cross-network and restrictive-network reliability therefore remains unverified until the VPS deployment in [TURN_DEPLOYMENT.md](./TURN_DEPLOYMENT.md) is completed. Permanent TURN secrets must never be placed in VITE variables or bundles.
 
 References: [MDN WebRTC connectivity](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Connectivity), [MDN ICE restart](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce).
 

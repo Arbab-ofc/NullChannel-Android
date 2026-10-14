@@ -1,9 +1,10 @@
 export const CALL_DEFAULTS = { ringMs: 30000, connectMs: 20000, disconnectMs: 10000 };
 export const NETWORK_FAILURE = 'Voice could not connect. This network may require a TURN relay; try another network.';
-export const iceConfiguration = (value = import.meta.env.VITE_WEBRTC_STUN_URLS ?? 'stun:stun.l.google.com:19302'): RTCConfiguration => {
+export const iceConfiguration = (value = import.meta.env.VITE_WEBRTC_STUN_URLS ?? 'stun:stun.l.google.com:19302', relay: RTCIceServer[] = []): RTCConfiguration => {
   const urls = value.split(',').map((url: string) => url.trim()).filter(Boolean);
   if (urls.length > 8 || urls.some((url: string) => !/^stuns?:[a-z0-9.-]+(?::\d{1,5})?$/i.test(url))) throw new Error('Invalid STUN configuration.');
-  return { iceServers: urls.length ? [{ urls }] : [], bundlePolicy: 'max-bundle' };
+  if (relay.length > 4 || relay.some(server => !server.urls || !server.username || !server.credential)) throw new Error('Invalid authenticated TURN configuration.');
+  return { iceServers: [...(urls.length ? [{ urls }] : []), ...relay], bundlePolicy: 'max-bundle', iceCandidatePoolSize: 4 };
 };
 export const microphoneError = (error: unknown) => {
   const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : '';
@@ -58,11 +59,8 @@ export class AudioPeer {
         if (this.closed || event.track.kind !== 'audio') return;
         audio.srcObject = event.streams[0] ?? new MediaStream([event.track]); void this.play();
       };
-      let gathered = 0;
-      pc.onicegatheringstatechange = () => { if (!this.closed && pc.iceGatheringState === 'complete' && gathered === 0) this.fail(NETWORK_FAILURE); };
       pc.onicecandidate = event => {
         if (this.closed || !event.candidate || !this.revision) return;
-        gathered += 1;
         const candidate = event.candidate.toJSON();
         const ufrag = candidate.usernameFragment;
         if (ufrag && !pc.localDescription?.sdp.includes(`a=ice-ufrag:${ufrag}`)) return;
@@ -155,7 +153,7 @@ export class AudioPeer {
     if (this.timer) clearTimeout(this.timer); this.timer = null;
     navigator.mediaDevices?.removeEventListener?.('devicechange',this.deviceListener);
     this.stream?.getTracks().forEach(track => { track.onended = null; track.stop(); }); this.stream = null;
-    if (this.pc) { this.pc.onicegatheringstatechange = null; this.pc.ontrack = null; this.pc.onicecandidate = null; this.pc.onconnectionstatechange = null; this.pc.oniceconnectionstatechange = null; this.pc.close(); this.pc = null; }
+    if (this.pc) { this.pc.ontrack = null; this.pc.onicecandidate = null; this.pc.onconnectionstatechange = null; this.pc.oniceconnectionstatechange = null; this.pc.close(); this.pc = null; }
     if (this.audio) { this.audio.pause(); this.audio.srcObject = null; this.audio.remove(); this.audio = null; }
     this.candidates = []; this.localCandidates = [];
   }

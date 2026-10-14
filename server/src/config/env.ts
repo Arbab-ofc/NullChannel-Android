@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { createHmac, randomUUID } from 'node:crypto';
 
 if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
 
@@ -31,12 +32,21 @@ const envSchema = z.object({
   CALL_SIGNAL_LIMIT: z.coerce.number().int().min(1).max(1000).default(300),
   CALL_MAX_CANDIDATES: z.coerce.number().int().min(16).max(512).default(256),
   CALL_MAX_ACTIVE: z.coerce.number().int().min(1).max(10000).default(1000),
+  TURN_URLS: z.string().optional(),
+  TURN_SHARED_SECRET: z.string().min(32).optional(),
+  TURN_CREDENTIAL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
   HOST: z.string().default('127.0.0.1'),
   FRIEND_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   CLEANUP_SECRET: z.string().optional()
 }).superRefine((value, context) => {
   if (value.NODE_ENV === 'production' && !value.MOBILE_APP_ORIGIN) {
     context.addIssue({ code: 'custom', path: ['MOBILE_APP_ORIGIN'], message: 'MOBILE_APP_ORIGIN must be explicitly configured in production.' });
+  }
+  if (Boolean(value.TURN_URLS) !== Boolean(value.TURN_SHARED_SECRET)) {
+    context.addIssue({ code: 'custom', path: ['TURN_SHARED_SECRET'], message: 'TURN_URLS and TURN_SHARED_SECRET must be configured together.' });
+  }
+  if (value.TURN_URLS && value.TURN_URLS.split(',').some(url => !/^turns?:[a-z0-9.-]+(?::\d{1,5})?(?:\?transport=(?:udp|tcp))?$/i.test(url.trim()))) {
+    context.addIssue({ code: 'custom', path: ['TURN_URLS'], message: 'Use comma-separated turn: or turns: relay URLs without embedded credentials.' });
   }
 }).transform(value => ({ ...value, MOBILE_APP_ORIGIN: value.MOBILE_APP_ORIGIN ?? 'https://localhost' }));
 
@@ -48,3 +58,11 @@ if (!parsed.success) {
 }
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
+
+export const createTurnCredential = (now = Date.now()) => {
+  if (!env.TURN_URLS || !env.TURN_SHARED_SECRET) return [];
+  const expires = Math.floor(now / 1000) + env.TURN_CREDENTIAL_TTL_SECONDS;
+  const username = `${expires}:${randomUUID()}`;
+  const credential = createHmac('sha1', env.TURN_SHARED_SECRET).update(username).digest('base64');
+  return [{ urls: env.TURN_URLS.split(',').map(url => url.trim()), username, credential }];
+};

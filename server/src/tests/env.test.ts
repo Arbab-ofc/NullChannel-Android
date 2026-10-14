@@ -11,7 +11,8 @@ vi.hoisted(() => {
     IMAGEKIT_URL_ENDPOINT: 'https://media.example'
   });
 });
-import { parseEnvironment } from '../config/env.js';
+import { createHmac } from 'node:crypto';
+import { createTurnCredential, env, parseEnvironment } from '../config/env.js';
 
 const base = {
   CLIENT_URL: 'https://nullchannel.example',
@@ -42,5 +43,25 @@ describe('environment origin configuration', () => {
     expect(configured.success).toBe(true);
     const path = parseEnvironment({ ...base, NODE_ENV: 'production', MOBILE_APP_ORIGIN: 'https://localhost/app' });
     expect(path.success).toBe(false);
+  });
+
+  it('requires TURN URLs and the server-only shared secret as a pair', () => {
+    expect(parseEnvironment({ ...base, TURN_URLS: 'turn:relay.example:3478' }).success).toBe(false);
+    expect(parseEnvironment({ ...base, TURN_SHARED_SECRET: 'a'.repeat(32) }).success).toBe(false);
+    expect(parseEnvironment({ ...base, TURN_URLS: 'turn:relay.example:3478?transport=udp,turns:relay.example:5349?transport=tcp', TURN_SHARED_SECRET: 'a'.repeat(32) }).success).toBe(true);
+    expect(parseEnvironment({ ...base, TURN_URLS: 'turn:user:password@relay.example', TURN_SHARED_SECRET: 'a'.repeat(32) }).success).toBe(false);
+  });
+
+  it('creates timestamped TURN REST credentials and never returns the shared secret', () => {
+    const oldUrls = env.TURN_URLS, oldSecret = env.TURN_SHARED_SECRET;
+    env.TURN_URLS = 'turn:relay.example:3478?transport=udp'; env.TURN_SHARED_SECRET = 's'.repeat(40);
+    try {
+      const now = 1_800_000_000_000;
+      const [server] = createTurnCredential(now);
+      expect(server.urls).toEqual(['turn:relay.example:3478?transport=udp']);
+      expect(server.username).toMatch(/^1800003600:/);
+      expect(server.credential).toBe(createHmac('sha1', 's'.repeat(40)).update(server.username).digest('base64'));
+      expect(JSON.stringify(server)).not.toContain('s'.repeat(40));
+    } finally { env.TURN_URLS = oldUrls; env.TURN_SHARED_SECRET = oldSecret; }
   });
 });

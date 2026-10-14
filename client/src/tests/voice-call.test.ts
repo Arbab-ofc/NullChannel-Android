@@ -90,9 +90,13 @@ describe('browser audio engine',() => {
     expect(cb.state.mock.calls.filter(([state]) => state === 'reconnecting')).toHaveLength(2); peer.close();
   });
   it.each(['NotAllowedError','NotFoundError','NotReadableError','OverconstrainedError','SecurityError'])('explains microphone %s',name => { const error = new Error('details'); error.name = name; expect(microphoneError(error)).not.toBe('details'); });
-  it('accepts public STUN URLs but rejects embedded TURN credentials',() => {
+  it('accepts public STUN and authenticated TURN configuration but rejects malformed relay credentials',() => {
     expect(iceConfiguration('stun:stun.l.google.com:19302').iceServers).toHaveLength(1);
-    expect(() => iceConfiguration('turn:user:secret@relay.example')).toThrow(); expect(iceConfiguration('').iceServers).toEqual([]);
+    const relay = { urls: ['turn:relay.example:3478?transport=udp','turns:relay.example:5349?transport=tcp'], username: 'expiry:nonce', credential: 'temporary' };
+    expect(iceConfiguration('',[relay]).iceServers).toEqual([relay]);
+    expect(() => iceConfiguration('turn:user:secret@relay.example')).toThrow();
+    expect(() => iceConfiguration('',[{ urls: 'turn:relay.example:3478' }])).toThrow();
+    expect(iceConfiguration('').iceServers).toEqual([]);
   });
 });
 const signaling = () => {
@@ -124,7 +128,7 @@ describe('frontend call state and signaling lifecycle',() => {
   it('keeps healthy audio through signaling loss, resumes after authorized room rejoin and bounds failure',async()=>{
     vi.useFakeTimers();const s=signaling();const cb={current:null as AudioCallbacks|null};
     const engine={offer:vi.fn(async()=>{}),close:vi.fn(),recover:vi.fn(),connected:true} as unknown as AudioPeer;
-    const call=new VoiceCall(s.socket,'TEST1234',(_caller,callbacks)=>{cb.current=callbacks;return engine;});call.attach();await call.invite();s.emit('call:outgoing',{callId:'id',roomCode:'TEST1234'});s.emit('call:accepted',{callId:'id'});cb.current!.state('connected');
+    const call=new VoiceCall(s.socket,'TEST1234',(_caller,callbacks)=>{cb.current=callbacks;return engine;});call.attach();await call.invite();s.emit('call:outgoing',{callId:'id',roomCode:'TEST1234'});s.emit('call:accepted',{callId:'id'});await vi.waitFor(()=>expect(cb.current).not.toBeNull());cb.current!.state('connected');
     s.socket.connected=false;s.emit('disconnect','transport close');expect(call.snapshot().phase).toBe('reconnecting');expect(engine.close).not.toHaveBeenCalled();s.socket.connected=true;s.emit('room-joined',{code:'TEST1234'});await Promise.resolve();await Promise.resolve();await Promise.resolve();expect(s.send).toHaveBeenCalledWith('call:resume',{callId:'id'},expect.any(Function));expect(call.snapshot().phase).toBe('connected');
     await vi.advanceTimersByTimeAsync(15*60*1000);expect(engine.close).not.toHaveBeenCalled();s.socket.connected=false;s.emit('disconnect','transport close');await vi.advanceTimersByTimeAsync(10001);expect(call.snapshot().phase).toBe('failed');expect(engine.close).toHaveBeenCalledOnce();call.dispose();
   });

@@ -20,6 +20,7 @@ import { errorMiddleware } from './middlewares/error.middleware.js';
 import sessionRoutes from './routes/session.routes.js';
 import { authenticate, requireOrigin } from './middlewares/auth.middleware.js';
 import rateLimit from 'express-rate-limit';
+import callRoutes from './routes/call.routes.js';
 
 export const app = express();
 app.set('trust proxy', 'loopback');
@@ -46,6 +47,7 @@ app.use('/api', matchRoutes);
 app.use('/api', groupToolsRoutes);
 app.use('/api', privacyRoutes);
 app.use('/api', authenticate);
+app.use('/api', callRoutes);
 app.use('/api', roomRoutes);
 app.use('/api', mediaRoutes);
 

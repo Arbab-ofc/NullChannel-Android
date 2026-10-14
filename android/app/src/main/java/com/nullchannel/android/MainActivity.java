@@ -41,10 +41,10 @@ public class MainActivity extends BridgeActivity {
       Insets bars = windowInsets.getInsets(
         WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
       );
-      Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+      boolean imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime());
       int[] padding = AndroidInsetsPolicy.contentPadding(
         baseLeft, baseTop, baseRight, baseBottom,
-        bars.left, bars.top, bars.right, bars.bottom, ime.bottom
+        bars.left, bars.top, bars.right, bars.bottom, imeVisible
       );
       // Always derive from the original padding. Insets can be redispatched on
       // rotation, keyboard changes, or navigation, so never accumulate them.

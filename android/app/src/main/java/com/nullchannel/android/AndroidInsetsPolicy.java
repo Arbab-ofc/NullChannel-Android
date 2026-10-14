@@ -1,6 +1,6 @@
 package com.nullchannel.android;
 
-/** Resolves the single native padding owner for the Capacitor content root. */
+/** Resolves system-bar padding for the Capacitor root. Android owns IME resizing. */
 final class AndroidInsetsPolicy {
   private AndroidInsetsPolicy() {}
 
@@ -13,13 +13,15 @@ final class AndroidInsetsPolicy {
     int insetTop,
     int insetRight,
     int systemBottom,
-    int imeBottom
+    boolean imeVisible
   ) {
     return new int[] {
       baseLeft + insetLeft,
       baseTop + insetTop,
       baseRight + insetRight,
-      baseBottom + Math.max(systemBottom, imeBottom)
+      // With adjustResize the window/WebView viewport already excludes the IME.
+      // Adding imeBottom here reserves that space twice and creates a black gap.
+      baseBottom + (imeVisible ? 0 : systemBottom)
     };
   }
 }

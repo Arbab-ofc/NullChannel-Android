@@ -5,6 +5,7 @@ import { API_URL } from './constants';
 
 type Kind = 'account' | 'guest';
 type NativeStore = {
+  refresh(options:{kind:Kind;baseUrl:string}):Promise<{bundle:TokenBundle|null}>;
   get(options: { key: string }): Promise<{ value?: string }>;
   set(options: { key: string; value: string }): Promise<void>;
   remove(options: { key: string }): Promise<void>;
@@ -24,7 +25,7 @@ export const isMobileSessionEndpointUnavailable = () => native() && mobileSessio
 
 async function readBundle(kind: Kind): Promise<TokenBundle | null> {
   const cached = memory.get(kind);
-  if (cached) return cached;
+  if (cached && Capacitor.getPlatform()!=='android') return cached;
   if (!native()) return null;
   const stored=await store.get({key:key(kind)});
   if(!stored.value)return null;
@@ -57,6 +58,9 @@ async function refreshBundle(kind: Kind): Promise<TokenBundle | null> {
     const current = await readBundle(kind);
     if (!current?.refreshToken) return null;
     try {
+      if(Capacitor.getPlatform()==='android'){
+        const result=await store.refresh({kind,baseUrl:API_URL});if(!result.bundle){await clearMobileCredentials(kind);if(kind==='account')window.dispatchEvent(new Event('nullchannel-account-expired'));return null;}memory.set(kind,result.bundle);return result.bundle;
+      }
       const response = await axios.post(`${API_URL}/api/mobile/auth/refresh`, null, {
         withCredentials: false,
         headers: { Authorization: `Bearer ${current.refreshToken}` }

@@ -14,7 +14,10 @@ export class CallDelivery {
     const result=await work();this.receipts.set(key,{hash,result});return result;
   }
   add(signal:DeliveredSignal){if(this.pending.size>=512)throw new Error('SIGNAL_BACKLOG');this.pending.set(signal.signalId,signal);}
+  advanceRevision(revision:number){for(const [id,signal] of this.pending)if(signal.revision<revision)this.pending.delete(id);}
   acknowledge(role:'caller'|'callee',id:string){const signal=this.pending.get(id);if(signal?.target===role)this.pending.delete(id);}
   replay(role:'caller'|'callee',revision:number){return [...this.pending.values()].filter(item=>item.target===role&&item.revision>=revision);}
+  exportState(){return {receipts:[...this.receipts].slice(-256),pending:[...this.pending]};}
+  static restore(state:ReturnType<CallDelivery['exportState']>){const journal=new CallDelivery();journal.receipts=new Map(state.receipts);journal.pending=new Map(state.pending);return journal;}
   clear(){this.pending.clear();this.receipts.clear();}
 }

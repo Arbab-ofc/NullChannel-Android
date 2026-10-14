@@ -1,12 +1,14 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { AudioCallbacks, CallPeer } from './webrtc';
-export type NativeEvent = {type:string;callId?:string;roomCode?:string;action?:string;state?:string;revision?:number;candidate?:RTCIceCandidateInit;online?:boolean;transport?:string;routes?:Array<{id:string;label:string}>;selected?:string;available?:boolean;permanentLoss?:boolean;protocol?:string;relay?:boolean;packetsLost?:number;packetsReceived?:number;iceErrorCode?:number;peerName?:string;roomName?:string;expiresAt?:number};
+export type NativeEvent = {type:string;callId?:string;roomCode?:string;action?:string;state?:string;revision?:number;candidate?:RTCIceCandidateInit;online?:boolean;transport?:string;routes?:Array<{id:string;label:string}>;selected?:string;available?:boolean;permanentLoss?:boolean;protocol?:string;relay?:boolean;packetsLost?:number;packetsReceived?:number;iceErrorCode?:number;phase?:string;ownershipId?:string;accepting?:boolean;kind?:'guest'|'account';muted?:boolean;connectedAt?:number;message?:string;peerName?:string;roomName?:string;expiresAt?:number};
 type Registration={configured:boolean;deviceId:string;secret:string;token:string;baseUrl:string};
 export type NativeMedia={callId:string;roomCode:string;state:string;revision:number};
 type NativeCallsApi={
+ microphoneLease(options:{owner:string;acquire:boolean}):Promise<{granted:boolean}>;
+ signalingStart(options:Record<string,unknown>):Promise<Record<string,unknown>>;signalingSnapshot():Promise<Record<string,unknown>>;signalingCommand(options:{action:string;callId?:string}):Promise<void>;showCallUI(options:{callId:string}):Promise<void>;
  addListener(event:'event',handler:(event:NativeEvent)=>void):Promise<PluginListenerHandle>;
- initialize():Promise<{firebaseConfigured:boolean;notificationsGranted:boolean;media:NativeMedia}>;
- drain():Promise<{events:NativeEvent[];action?:NativeEvent;media:NativeMedia}>;
+ initialize():Promise<{firebaseConfigured:boolean;notificationsGranted:boolean;media:NativeMedia;signaling?:Record<string,unknown>}>;
+ drain():Promise<{events:NativeEvent[];action?:NativeEvent;media:NativeMedia;signaling?:Record<string,unknown>}>;
  notificationPermission():Promise<{granted:boolean}>;bluetoothPermission():Promise<{granted:boolean}>;
  registration(options:{kind:'guest'|'account';baseUrl:string}):Promise<Registration>;
  context(options:{roomCode:string;clear?:boolean}):Promise<void>;

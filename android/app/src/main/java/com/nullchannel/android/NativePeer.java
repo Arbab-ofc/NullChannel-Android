@@ -33,7 +33,7 @@ final class NativePeer {
   private static volatile String state="idle";
   static CompletableFuture<Void> start(Context supplied,String id,String room,JSONArray servers,int connectMs,int disconnectMs){return task(()->{
     if(!callId.isEmpty()){if(callId.equals(id))return;throw new IllegalStateException("Another call owns the microphone");}
-    context=supplied.getApplicationContext();callId=id;roomCode=room;outageMs=Math.max(1000,Math.min(30000,disconnectMs));
+    if(!NativeMicrophoneLease.claim("call:"+id))throw new IllegalStateException("The recorder owns the microphone");context=supplied.getApplicationContext();callId=id;roomCode=room;outageMs=Math.max(1000,Math.min(30000,disconnectMs));
     try {
       androidx.core.content.ContextCompat.startForegroundService(context,new Intent(context,CallForegroundService.class).putExtra("callId",id));
       audio=new NativeAudioController(context);audio.begin();
@@ -56,12 +56,12 @@ final class NativePeer {
   static void focus(boolean value){executor.execute(()->{focus=value;if(track!=null)track.setEnabled(!muted&&focus);if(remoteTrack!=null)remoteTrack.setEnabled(focus);});}
   static CompletableFuture<JSObject> routes(String value){CompletableFuture<JSObject> result=new CompletableFuture<>();executor.execute(()->{try{if(audio==null)throw new IllegalStateException("Call audio inactive");if(value!=null)audio.route(value);result.complete(audio.snapshot());}catch(Exception error){result.completeExceptionally(error);}});return result;}
   static JSObject snapshot(){return new JSObject().put("callId",callId).put("roomCode",roomCode).put("state",state).put("revision",revision);}
-  static void end(Context supplied){String ended=callId;executor.execute(()->{if(!ended.equals(callId))return;release();if(!ended.isEmpty())NativeCallEvents.emit("ended",new JSObject().put("callId",ended));});supplied.stopService(new Intent(supplied,CallForegroundService.class));}
-  static void release(){String ended=callId;callId="";state="idle";revision=0;muted=false;focus=true;
+  static void end(Context supplied){String ended=callId;executor.execute(()->{if(!ended.equals(callId))return;release();if(!ended.isEmpty())NativeCallEvents.emit("ended",new JSObject().put("callId",ended));});CallForegroundService.stop(supplied,ended,null);}
+  static void release(){String ended=callId;NativeMicrophoneLease.release("call:"+ended);callId="";roomCode="";state="idle";revision=0;muted=false;focus=true;
     if(deadlineJob!=null){deadlineJob.cancel(false);deadlineJob=null;}
     if(statsJob!=null){statsJob.cancel(false);statsJob=null;}remoteTrack=null;
     if(peer!=null){peer.close();peer.dispose();peer=null;}if(track!=null){track.dispose();track=null;}if(source!=null){source.dispose();source=null;}if(factory!=null){factory.dispose();factory=null;}if(module!=null){module.release();module=null;}if(audio!=null){audio.end();audio=null;}
-    if(context!=null&&!ended.isEmpty()){androidx.core.app.NotificationManagerCompat.from(context).cancel(NativeNotifications.id(ended));context.stopService(new Intent(context,CallForegroundService.class));}NativeRingtones.stopFor(ended);}
+    if(context!=null&&!ended.isEmpty()){androidx.core.app.NotificationManagerCompat.from(context).cancel(NativeNotifications.id(ended));CallForegroundService.stop(context,ended,null);}NativeRingtones.stopFor(ended);}
   private static synchronized void deadline(String id,int ms){if(deadlineJob!=null)deadlineJob.cancel(false);deadlineJob=statsExecutor.schedule(()->executor.execute(()->{if(id.equals(callId)&&!state.equals("connected")){String ended=callId;release();NativeCallEvents.emit("ended",new JSObject().put("callId",ended));}}),ms,java.util.concurrent.TimeUnit.MILLISECONDS);}
   private static synchronized void mediaState(String owner,String next){if(!owner.equals(callId))return;if(next.equals("connected")){if(deadlineJob!=null)deadlineJob.cancel(false);deadlineJob=null;}else if(next.equals("reconnecting")&&deadlineJob==null)deadline(owner,outageMs);state=next;NativeCallEvents.emit("state",new JSObject().put("callId",owner).put("state",next));}
   private static void diagnostics(){if(peer==null||callId.isEmpty())return;String id=callId;

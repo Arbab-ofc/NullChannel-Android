@@ -29,7 +29,7 @@ const wait = (socket: Client,event: string) => new Promise<Record<string,unknown
 });
 const ack = (socket: Client,event: string,payload: object) => new Promise<{ ok: boolean; code?: string; callId?: string }>((resolve,reject) => socket.timeout(3000).emit(event,payload,(error: Error,reply: { ok: boolean }) => error ? reject(error) : resolve(reply)));
 const client = async (index: number) => {
-  const socket = connect(url,{ autoConnect: false,reconnection: false,transports: ['websocket'],extraHeaders: { Origin: origin,Cookie: `nc_access=${['a','b','c'][index].repeat(64)}` } });
+  const socket = connect(url,{ auth:{callProtocol:2},autoConnect: false,reconnection: false,transports: ['websocket'],extraHeaders: { Origin: origin,Cookie: `nc_access=${['a','b','c'][index].repeat(64)}` } });
   clients.push(socket); const ready = wait(socket,'connect'); socket.connect(); await ready; await io.sockets.sockets.get(socket.id!)!.join(state.room.id); return socket;
 };
 const pair = async () => [await client(0),await client(1)] as const;

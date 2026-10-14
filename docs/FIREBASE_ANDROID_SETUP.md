@@ -52,14 +52,12 @@ backend request. Microphone capture starts only after user acceptance and permis
 Incoming high-priority FCM messages may start the bounded ringtone foreground
 service where Android permits. This service uses `mediaPlayback`, never microphone
 capture. If Android denies service startup or downgrades priority, the app retains
-its ordinary notification alert. No full-screen intent permission or launch bypass
-is used. Force-stop, device power restrictions, denied notification permissions,
+its ordinary notification alert. Full-screen call presentation is requested only when Android permits it; Android 14+ eligibility is checked. No background launch bypass is used. See `ANDROID_NATIVE_CALLING.md` for Telecom, permission and native Activity details. Force-stop, device power restrictions, denied notification permissions,
 DND and provider delays can prevent or defer alerts.
 
 ## Deployment limits
 
-The device store and call registry currently belong to one backend process.
-Horizontal scaling requires a shared encrypted subscription store and distributed
-call coordination. Without an encrypted store, registrations are memory-only and
+Memory-mode device storage and call ownership belong to one backend process.
+Redis coordination mode supplies a shared encrypted subscription store and distributed call state. The file store remains a single-instance option. Without an encrypted store, registrations are memory-only and
 must be renewed after restart. Push is disabled by default; live Firebase delivery
 and physical Android notification behavior were not tested in this mission.

@@ -1,3 +1,4 @@
+import {configureDistributedCalls,distributedCallsHealthy} from './distributed.js';
 import { randomUUID } from 'node:crypto';
 import { supabase } from '../config/supabase.js';
 import { getRoomByCode } from '../services/room.service.js';
@@ -29,8 +30,11 @@ export const createSocketServer = (server: HttpServer) => {
     allowRequest: (req, callback) => callback(null, (req.headers.origin === env.CLIENT_URL || req.headers.origin === env.MOBILE_APP_ORIGIN) && allowEvent(`connect:${connectionAddress(req)}`, env.SOCKET_CONNECTION_LIMIT))
   });
 
+  const distributedReady=configureDistributedCalls(io);
   io.use(async (socket, next) => {
     try {
+      socket.data.callProtocol=socket.handshake.auth.callProtocol===2||socket.handshake.auth.callProtocol==='2'?2:1;
+      await distributedReady;if(!await distributedCallsHealthy(io))return next(new Error('SESSION_UNAVAILABLE'));
       if(socket.handshake.headers.origin===env.MOBILE_APP_ORIGIN){
         const auth=socket.handshake.auth as {accountToken?:unknown;guestToken?:unknown;roomCode?:unknown;globalCalls?:unknown};
         const roomCode=typeof auth.roomCode==='string'?auth.roomCode.toUpperCase():'';

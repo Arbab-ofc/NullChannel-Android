@@ -11,13 +11,13 @@ import { callRefSchema, callReceivedSchema, callRejectSchema, callResumeSchema, 
 import { allowEvent } from './rateLimit.js';
 import type { z } from 'zod';
 
-type Participant = { identity: string; socketId: string; name: string; accountId?: string; mobileSessionId?:string; busyKey: string };
+type Participant = { identity: string; socketId: string; name: string; accountId?: string; mobileSessionId?:string; busyKey: string;protocol?:number };
 export type CallSession = {
   callId: string; roomId: string; roomCode: string; roomName: string;
   caller: Participant; callee: Participant; status: 'ringing' | 'connecting' | 'connected';
   createdAt: number; acceptedAt?: number; recovering: boolean; revision: number; answered: boolean;
   candidates: Map<string, number>; connected: Set<string>; timer: ReturnType<typeof setTimeout>;
-  expiryTimer: ReturnType<typeof setTimeout>;roomExpiresAt:string;
+  expiryTimer: ReturnType<typeof setTimeout>;roomExpiresAt:string;deadlineReason?:string;inviteMessageId?:string;
   detached?:Set<string>; version: number; ready: Set<string>; deadline: number; delivery: CallDelivery;
 };
 class CallFailure extends Error { constructor(public code: string, message: string) { super(message); } }
@@ -25,7 +25,12 @@ export class CallRegistry {
   readonly calls = new Map<string, CallSession>();
   private readonly busy = new Map<string, string>();
   private pending = 0;
-  constructor(private io: Server) {}
+  constructor(private io: Server,private timersEnabled=true,private effects:(work:()=>void)=>void=work=>work()) {}
+  private timer(work:()=>void,ms:number){const timer=setTimeout(this.timersEnabled?work:()=>undefined,this.timersEnabled?ms:2147483647);timer.unref();return timer;}
+  exportState(){return [...this.calls.values()].map(({timer:_timer,expiryTimer:_expiry,...call})=>({...call,candidates:[...call.candidates],connected:[...call.connected],ready:[...call.ready],detached:[...call.detached??[]],delivery:call.delivery.exportState()}));}
+  importState(rows:ReturnType<CallRegistry['exportState']>){for(const row of rows){const call={...row,candidates:new Map(row.candidates),connected:new Set(row.connected),ready:new Set(row.ready),detached:new Set(row.detached),delivery:CallDelivery.restore(row.delivery),timer:this.timer(()=>undefined,0),expiryTimer:this.timer(()=>undefined,0)};this.calls.set(call.callId,call);this.busy.set(call.caller.busyKey,call.callId);this.busy.set(call.callee.busyKey,call.callId);}}
+  releaseTimers(){for(const call of this.calls.values()){clearTimeout(call.timer);clearTimeout(call.expiryTimer);}}
+  sweep(){const now=Date.now();for(const call of [...this.calls.values()]){if(Date.parse(call.roomExpiresAt)<=now)this.end(call.callId,'room-expired');else if(call.deadline>0&&call.deadline<=now)this.end(call.callId,call.deadlineReason??(call.status==='ringing'?'no-answer':'connection-timeout'));else for(const peer of [call.caller,call.callee])if(peer.socketId&&!this.io.sockets.sockets.has(peer.socketId)&&!call.detached?.has(peer.identity))this.disconnected({id:peer.socketId,data:{identity:peer.identity}} as Socket);}}
   async dispatch(work: () => Promise<CallAck>) {
     if (this.pending >= 64) throw new CallFailure('BUSY','Calling is temporarily busy.');
     this.pending += 1;
@@ -45,7 +50,7 @@ export class CallRegistry {
     clearTimeout(call.timer); clearTimeout(call.expiryTimer);
     this.calls.delete(callId); this.busy.delete(call.caller.busyKey); this.busy.delete(call.callee.busyKey);
     call.candidates.clear(); call.connected.clear(); call.delivery.clear();
-    void pushRoomEvent(call.roomId,{eventId:randomUUID(),kind:'call-ended',callId:call.callId,roomCode:call.roomCode,expiresAt:Date.now()+60000}).catch(()=>undefined);
+    this.effects(()=>{void pushRoomEvent(call.roomId,{eventId:randomUUID(),kind:'call-ended',callId:call.callId,roomCode:call.roomCode,expiresAt:Date.now()+60000}).catch(()=>undefined);});
     this.emit(call, reason === 'no-answer' ? 'call:timeout' : ['declined','busy'].includes(reason) ? 'call:rejected' : 'call:ended', { reason });
   }
   endRoom(roomId: string, identity?: string) {
@@ -57,11 +62,11 @@ export class CallRegistry {
     }
   }
   private expiry(id: string, expires: string) {
-    const timer = setTimeout(() => this.end(id, 'room-expired'), Math.max(0, Date.parse(expires)-Date.now())); timer.unref(); return timer;
+    const timer = this.timer(() => this.end(id, 'room-expired'), Math.max(0, Date.parse(expires)-Date.now())); timer.unref(); return timer;
   }
   private timeout(call: CallSession, ms: number, reason: string, preserve=false) {
     const now=Date.now();call.deadline=preserve&&call.deadline>0?Math.min(call.deadline,now+ms):now+ms;
-    clearTimeout(call.timer); call.timer = setTimeout(() => this.end(call.callId,reason),Math.max(0,call.deadline-now)); call.timer.unref();
+    clearTimeout(call.timer); call.deadlineReason=reason;call.timer = this.timer(() => this.end(call.callId,reason),Math.max(0,call.deadline-now)); call.timer.unref();
   }
   private async eligible(socket: Socket, code: string) {
     const room = await getRoomByCode(code);
@@ -73,7 +78,8 @@ export class CallRegistry {
     if (!socket.connected) throw new CallFailure('DISCONNECTED','Reconnect before calling.');
     return { room, members };
   }
-  async invite(socket: Socket, code: string): Promise<CallAck> {
+  async invite(socket: Socket, code: string,messageId?:string): Promise<CallAck> {
+    if(messageId){const existing=[...this.calls.values()].find(call=>call.inviteMessageId===messageId&&call.caller.identity===socket.data.identity&&call.roomCode===code);if(existing)return {ok:true,callId:existing.callId};}
     const { room, members } = await this.eligible(socket,code);
     const other = members.find(member => member.sender_id !== socket.data.identity)!;
     let otherAccount: string|undefined;
@@ -99,17 +105,17 @@ export class CallRegistry {
     if(!socket.connected||!socket.rooms.has(room.id)||Date.parse(room.expires_at)<=Date.now())throw new CallFailure('ROOM_EXPIRED','The room is no longer available.');
     const caller = members.find(member => member.sender_id === socket.data.identity)!;
     const id = randomUUID();
-    const call: CallSession = { callId: id, roomId: room.id, roomCode: code, roomName: room.room_name,
-      caller: { identity: socket.data.identity, socketId: socket.id, name: caller.sender_name,accountId:socket.data.accountId,mobileSessionId:socket.data.mobileSessionId,busyKey:callerKey },
-      callee: { identity: other.sender_id, socketId: '', name: other.sender_name,accountId:otherAccount,busyKey:calleeKey }, status: 'ringing', createdAt: Date.now(),
+    const call: CallSession = { callId: id,inviteMessageId:messageId,deadlineReason:'no-answer', roomId: room.id, roomCode: code, roomName: room.room_name,
+      caller: { identity: socket.data.identity, socketId: socket.id, name: caller.sender_name,accountId:socket.data.accountId,mobileSessionId:socket.data.mobileSessionId,busyKey:callerKey,protocol:messageId||socket.data.callProtocol===2?2:1 },
+      callee: { identity: other.sender_id, socketId: '', name: other.sender_name,accountId:otherAccount,busyKey:calleeKey,protocol:1 }, status: 'ringing', createdAt: Date.now(),
       roomExpiresAt:room.expires_at,version:1,ready:new Set(),deadline:Date.now()+env.CALL_RING_TIMEOUT_MS,delivery:new CallDelivery(),revision: 0, recovering: false, answered: false, candidates: new Map(), connected: new Set(),
-      timer: setTimeout(() => this.end(id,'no-answer'),env.CALL_RING_TIMEOUT_MS), expiryTimer: this.expiry(id,room.expires_at) };
+      timer: this.timer(() => this.end(id,'no-answer'),env.CALL_RING_TIMEOUT_MS), expiryTimer: this.expiry(id,room.expires_at) };
     call.timer.unref(); this.calls.set(id,call); this.busy.set(callerKey,id); this.busy.set(calleeKey,id);
     const timeouts = { ringMs: env.CALL_RING_TIMEOUT_MS,connectMs: env.CALL_CONNECT_TIMEOUT_MS,disconnectMs: env.CALL_DISCONNECT_GRACE_MS };
     socket.emit('call:outgoing',{ protocol:2,expiresAt:call.deadline,timeouts,callId: id, roomCode: code, peerName: call.callee.name, roomName: room.room_name });
     for (const peer of peers) peer.emit('call:incoming',{ protocol:2,expiresAt:call.deadline,timeouts,callId: id, roomCode: code, peerName: call.caller.name, roomName: room.room_name });
     for(const peer of globalPeers) if(!peers.includes(peer))peer.emit('call:invitation',{protocol:2,timeouts,callId:id,roomCode:code,peerName:caller.sender_name,roomName:room.room_name,expiresAt:call.deadline});
-    void pushRoomEvent(room.id,{eventId:id,kind:'incoming-call',callId:id,roomCode:code,expiresAt:call.deadline},other.sender_id).catch(()=>undefined);
+    this.effects(()=>{void pushRoomEvent(room.id,{eventId:id,kind:'incoming-call',callId:id,roomCode:code,expiresAt:call.deadline},other.sender_id).catch(()=>undefined);});
     return { ok: true, callId: id };
   }
   async authorize(socket: Socket, callId: string) {
@@ -130,9 +136,9 @@ export class CallRegistry {
     return { call, role };
   }
   snapshot(call:CallSession){return {callId:call.callId,phase:call.status,stateVersion:call.version,revision:call.revision,ready:{caller:call.ready.has(call.caller.identity),callee:call.ready.has(call.callee.identity)},deadline:call.deadline,roomExpiresAt:call.roomExpiresAt,recovering:call.recovering};}
-  invitation(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);if(!call||call.status!=='ringing'||call.deadline<=Date.now()||!(principal.accountId&&principal.accountId===call.callee.accountId||principal.identityId&&principal.identityId===call.callee.identity))return null;return {callId:id,roomCode:call.roomCode,peerName:call.caller.name,roomName:call.roomName,expiresAt:call.deadline,timeouts:{ringMs:env.CALL_RING_TIMEOUT_MS,connectMs:env.CALL_CONNECT_TIMEOUT_MS,disconnectMs:env.CALL_DISCONNECT_GRACE_MS}};}
-  canControl(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);return !!call&&[call.caller,call.callee].some(peer=>principal.accountId?peer.accountId===principal.accountId:peer.identity===principal.identityId);}
-  authorizedSnapshot(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);if(!call||!this.canControl(principal,id))return null;const role=(principal.accountId?call.caller.accountId===principal.accountId:call.caller.identity===principal.identityId)?'caller':'callee';return {snapshot:this.snapshot(call),role,answered:call.answered,peerName:role==='caller'?call.callee.name:call.caller.name,roomName:call.roomName};}
+  async invitation(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);if(!call||call.status!=='ringing'||call.deadline<=Date.now()||!(principal.accountId&&principal.accountId===call.callee.accountId||principal.identityId&&principal.identityId===call.callee.identity))return null;return {callId:id,roomCode:call.roomCode,peerName:call.caller.name,roomName:call.roomName,expiresAt:call.deadline,timeouts:{ringMs:env.CALL_RING_TIMEOUT_MS,connectMs:env.CALL_CONNECT_TIMEOUT_MS,disconnectMs:env.CALL_DISCONNECT_GRACE_MS}};}
+  async canControl(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);return !!call&&[call.caller,call.callee].some(peer=>principal.accountId?peer.accountId===principal.accountId:peer.identity===principal.identityId);}
+  async authorizedSnapshot(principal:{accountId:string|null;identityId:string|null},id:string){const call=this.calls.get(id);if(!call||!await this.canControl(principal,id))return null;const role=(principal.accountId?call.caller.accountId===principal.accountId:call.caller.identity===principal.identityId)?'caller':'callee';return {snapshot:this.snapshot(call),role,answered:call.answered,peerName:role==='caller'?call.callee.name:call.caller.name,roomName:call.roomName};}
   ringing(id:string){const call=this.calls.get(id);if(call?.status==='ringing')this.io.to(call.caller.socketId).emit('call:ringing',{callId:id});}
   async action(socket:Socket,event:string,data:{callId:string;messageId?:string;signalId?:string;revision?:number;sdp?:string;candidate?:unknown}):Promise<CallAck>{
     const call=this.calls.get(data.callId);
@@ -144,6 +150,7 @@ export class CallRegistry {
     if (event === 'call:end' && !this.calls.has(data.callId)) return { ok: true };
     if(event==='call:resume'&&(data as {takeover?:boolean}).takeover&&socket.data.mobileSessionId){const existing=this.calls.get(data.callId);const owner=existing&&[existing.caller,existing.callee].find(peer=>peer.identity===socket.data.identity);const prior=owner&&this.io.sockets.sockets.get(owner.socketId);if(prior&&prior.id!==socket.id&&prior.data.mobileSessionId===socket.data.mobileSessionId)prior.disconnect(true);}
     const { call, role } = await this.authorize(socket,data.callId);
+    if(data.messageId)call[role].protocol=2;
     if(event==='call:resume'){call.ready.add(socket.data.identity);call.version++;this.emit(call,'call:state',this.snapshot(call));return {ok:true,callId:call.callId,snapshot:this.snapshot(call),replay:call.delivery.replay(role,call.revision)};}
     if(event==='call:received'){call.delivery.acknowledge(role,data.signalId!);return {ok:true};}
     if(event==='call:ringing'){if(role!=='callee')throw new CallFailure('INVALID_STATE','Only the receiver can confirm ringing.');this.ringing(call.callId);return {ok:true};}
@@ -151,10 +158,10 @@ export class CallRegistry {
     if (event === 'call:accept' || event === 'call:reject') {
       if (role !== 'callee' || call.status !== 'ringing') throw new CallFailure('INVALID_STATE','This invitation has already been handled.');
       if (event === 'call:reject') { this.end(call.callId,(data as {reason?:string}).reason==='busy'?'busy':'declined'); return { ok: true }; }
-      call.ready.add(call.caller.identity);call.ready.add(call.callee.identity);call.version++;call.callee.mobileSessionId=socket.data.mobileSessionId;call.callee.socketId = socket.id; call.status = 'connecting'; call.acceptedAt = Date.now();
+      call.ready.add(call.caller.identity);call.ready.add(call.callee.identity);call.version++;call.callee.mobileSessionId=socket.data.mobileSessionId;call.callee.protocol=data.messageId||socket.data.callProtocol===2?2:1;call.callee.socketId = socket.id; call.status = 'connecting'; call.acceptedAt = Date.now();
       this.timeout(call,env.CALL_CONNECT_TIMEOUT_MS,'connection-timeout');
       for (const tab of this.io.sockets.sockets.values()) if ((tab.data.identity === call.callee.identity || call.callee.accountId&&tab.data.accountId===call.callee.accountId) && tab.id !== socket.id && (!socket.data.mobileSessionId || tab.data.mobileSessionId!==socket.data.mobileSessionId)) tab.emit('call:ended',{ callId: call.callId, roomCode: call.roomCode, reason: 'answered-elsewhere' });
-      if(pushConfigured())void pushDevices.eligible(call.roomId,call.callee.identity).then(devices=>deliverPush(devices.filter(device=>device.principal.id!==socket.data.mobileSessionId),{eventId:randomUUID(),kind:'call-ended',callId:call.callId,roomCode:call.roomCode,expiresAt:Date.now()+60000})).catch(()=>undefined);
+      if(pushConfigured())this.effects(()=>{void pushDevices.eligible(call.roomId,call.callee.identity).then(devices=>deliverPush(devices.filter(device=>device.principal.id!==socket.data.mobileSessionId),{eventId:randomUUID(),kind:'call-ended',callId:call.callId,roomCode:call.roomCode,expiresAt:Date.now()+60000})).catch(()=>undefined);});
       this.emit(call,'call:accepted',{snapshot:this.snapshot(call)}); return { ok: true };
     }
     if (call.status === 'ringing') throw new CallFailure('INVALID_STATE','Accept the call before negotiating.');
@@ -163,7 +170,7 @@ export class CallRegistry {
     if (event === 'call:offer') {
       if (role !== 'caller' || data.revision !== call.revision+1 || (call.revision > 0 && !call.answered)) throw new CallFailure('INVALID_STATE','Offer is out of sequence.');
       if(data.messageId&&(!call.ready.has(call.caller.identity)||!call.ready.has(call.callee.identity)))throw new CallFailure('PEERS_NOT_READY','Waiting for both participants to reconnect.');
-      call.revision = data.revision; call.answered = false;call.candidates.clear();call.version++;
+      call.delivery.advanceRevision(data.revision);call.revision = data.revision; call.answered = false;call.candidates.clear();call.version++;
     } else if (event === 'call:answer') {
       if (role !== 'callee' || call.revision === 0 || data.revision !== call.revision || call.answered) throw new CallFailure('INVALID_STATE','Answer is out of sequence.');
       call.answered = true;
@@ -184,7 +191,7 @@ export class CallRegistry {
       this.emit(call,'call:reconnecting'); return { ok: true };
     }
     const outgoing={...data,...(data.messageId?{signalId:data.messageId}:{})};
-    if(data.messageId)try{call.delivery.add({signalId:data.messageId,event,data:outgoing,target:role==='caller'?'callee':'caller',revision:data.revision??call.revision});}catch{this.end(call.callId,'signaling-overflow');throw new CallFailure('SIGNAL_BACKLOG','Voice signaling could not recover.');}
+    if(data.messageId&&call[role==='caller'?'callee':'caller'].protocol===2)try{call.delivery.add({signalId:data.messageId,event,data:outgoing,target:role==='caller'?'callee':'caller',revision:data.revision??call.revision});}catch{this.end(call.callId,'signaling-overflow');throw new CallFailure('SIGNAL_BACKLOG','Voice signaling could not recover.');}
     this.io.to(target).emit(event,outgoing); return { ok: true };
   }
   disconnected(socket: Socket) {
@@ -198,6 +205,7 @@ export class CallRegistry {
   }
   dispose() { for (const id of this.calls.keys()) this.end(id,'server-stopped'); }
 }
+export const installCallRegistry=(io:Server,registry:CallRegistry)=>registries.set(io,registry);
 const registries = new WeakMap<Server, CallRegistry>();
 export const getCallRegistry = (io: Server) => {
   let registry = registries.get(io); if (!registry) { registry = new CallRegistry(io); registries.set(io,registry); } return registry;
@@ -213,7 +221,7 @@ export const registerCallSocket = (io: Server, socket: Socket) => {
     const parsed = schema.safeParse(payload);
     if (!parsed.success) return respond({ ok: false, code: 'VALIDATION_ERROR', message: 'Invalid calling payload.' });
     void registry.dispatch(async () => {
-      if (event === 'call:invite') return registry.invite(socket,(parsed.data as { roomCode: string }).roomCode);
+      if (event === 'call:invite') return registry.invite(socket,(parsed.data as { roomCode: string }).roomCode,(parsed.data as {messageId?:string}).messageId);
       return registry.action(socket,event,parsed.data as { callId: string });
     }).then(respond).catch(error => respond({ ok: false, code: error instanceof CallFailure ? error.code : 'CALL_UNAVAILABLE', message: error instanceof CallFailure ? error.message : 'Calling is temporarily unavailable.' }));
   });

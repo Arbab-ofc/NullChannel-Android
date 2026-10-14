@@ -25,13 +25,13 @@ router.get('/rooms/:code/calls/ice-servers', iceCredentialLimit, requireMembersh
   } catch (error) { next(error); }
 });
 
-router.get('/rooms/:code/calls/:callId/invitation',iceCredentialLimit,requireMembership,(req,res)=>{
- const invitation=currentCallRegistry()?.invitation({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
+router.get('/rooms/:code/calls/:callId/invitation',iceCredentialLimit,requireMembership,async(req,res,next)=>{try{
+ const invitation=await currentCallRegistry()?.invitation({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
  if(!invitation||invitation.roomCode!==String(req.params.code).toUpperCase()){res.status(410).json(errorResponse('INVITATION_EXPIRED','This invitation has expired.'));return;}
- res.json(successResponse({...invitation,protocol:2}));
+ res.json(successResponse({...invitation,protocol:2}));}catch(error){next(error);}
 });
-router.get('/rooms/:code/calls/:callId/state',iceCredentialLimit,requireMembership,(req,res)=>{
- const state=currentCallRegistry()?.authorizedSnapshot({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
- if(!state){res.status(410).json(errorResponse('INVALID_CALL','Call ended.'));return;}res.json(successResponse(state));
+router.get('/rooms/:code/calls/:callId/state',iceCredentialLimit,requireMembership,async(req,res,next)=>{try{
+ const state=await currentCallRegistry()?.authorizedSnapshot({accountId:res.locals.accountId??null,identityId:res.locals.identity??null},String(req.params.callId));
+ if(!state){res.status(410).json(errorResponse('INVALID_CALL','Call ended.'));return;}res.json(successResponse(state));}catch(error){next(error);}
 });
 export default router;

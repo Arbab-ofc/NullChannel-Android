@@ -1,4 +1,5 @@
 import axios from 'axios';
+import {NativeOwnedCall} from './native-owned-call';
 import { io } from 'socket.io-client';
 import { API_URL } from './constants';
 import { nativeAndroid,nativeCalls,nativeOperation,listenNativeEvents,dispatchNativeEvent,type NativeEvent } from './native-calls';
@@ -60,6 +61,8 @@ async function incoming(payload:Invitation,answer=false){
  invitations.set(payload.callId,work);try{await work;}finally{invitations.delete(payload.callId);}
 }
 async function nativeEvent(event:NativeEvent){
+ if(event.type==='native-call'&&event.roomCode){const call=existingRoomCall(event.roomCode)??roomVoiceCall(isolatedRoomSocket(event.roomCode),event.roomCode);call.attach();if(call instanceof NativeOwnedCall)call.adopt(event as unknown as Record<string,unknown>);return;}
+ if(event.type==='session-ended'){await revokeNativeCalling(event.kind);return;}
  const call=activeCallSnapshot();
  if(event.type==='ended'&&event.callId&&!activeCallSnapshot())nativeOperation('ended-tone',nativeCalls.tone({tone:'ended',callId:event.callId,durationMs:500,cancelNotification:true}));
  if(event.type==='diagnostic')console.info('voice_diagnostic',{protocol:event.protocol,relay:event.relay,packetsLost:event.packetsLost,packetsReceived:event.packetsReceived,iceErrorCode:event.iceErrorCode});
@@ -79,7 +82,8 @@ export async function initializeNativeCalling(){
  await listenNativeEvents(event=>{void nativeEvent(event);});
  const status=await nativeCalls.initialize();
  if(!status.notificationsGranted)await nativeCalls.notificationPermission();
- if(status.media.callId){
+ if(status.signaling?.callId&&status.signaling.roomCode){const code=String(status.signaling.roomCode);const call=existingRoomCall(code)??roomVoiceCall(isolatedRoomSocket(code),code);call.attach();if(call instanceof NativeOwnedCall)call.adopt(status.signaling);}
+ else if(status.media.callId){
   // Reconcile process-owned native media before reconnecting its room transport.
   try{
    const {roomCode,callId,state}=status.media;

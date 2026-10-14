@@ -1,3 +1,4 @@
+import {RedisCallStore} from './call-coordination.js';
 import { createHash, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -12,12 +13,22 @@ export type PushDevice = { deviceId: string; token: string; secretHash: string; 
 export type PushEvent = { eventId: string; kind: 'message'|'incoming-call'|'call-ended'|'room-expired'; roomCode: string; expiresAt: number; callId?: string };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 export class PushDevices {
+  private sharedStore:Promise<RedisCallStore>|undefined;
+  constructor(private isolated=false){}
+  private distributed(){return !this.isolated&&env.CALL_COORDINATION_MODE==='redis';}
+  private async shared<T>(work:(devices:PushDevices)=>Promise<T>):Promise<T>{
+    if(!this.sharedStore)this.sharedStore=(async()=>{const store=new RedisCallStore(env.CALL_REDIS_URL!,env.CALL_REDIS_ENCRYPTION_KEY!,'nc:push:v1',30*86400);await store.connect();return store;})();
+    const store=await this.sharedStore;
+    return store.transaction<PushDevice[],T>(async rows=>{const local=new PushDevices(true);for(const row of rows??[])if(row.expiresAt>Date.now())local.devices.set(row.deviceId,row);const result=await work(local);return {state:[...local.devices.values()],result};});
+  }
+  async close(){if(this.sharedStore)await (await this.sharedStore).close();}
+
   readonly devices = new Map<string, PushDevice>();
   private loaded: Promise<void> | undefined;
   private writes = Promise.resolve();
   private async load() {
     if (!this.loaded) this.loaded = (async () => {
-      if (!env.PUSH_DEVICE_STORE_PATH || !env.PUSH_DEVICE_STORE_KEY) return;
+      if (this.isolated || !env.PUSH_DEVICE_STORE_PATH || !env.PUSH_DEVICE_STORE_KEY) return;
       try {
         const data = await readFile(env.PUSH_DEVICE_STORE_PATH); const decipher = createDecipheriv('aes-256-gcm', Buffer.from(env.PUSH_DEVICE_STORE_KEY,'hex'), data.subarray(0,12));
         decipher.setAuthTag(data.subarray(12,28));
@@ -28,7 +39,7 @@ export class PushDevices {
     return this.loaded;
   }
   private persist() {
-    if (!env.PUSH_DEVICE_STORE_PATH || !env.PUSH_DEVICE_STORE_KEY) return Promise.resolve();
+    if (this.isolated || !env.PUSH_DEVICE_STORE_PATH || !env.PUSH_DEVICE_STORE_KEY) return Promise.resolve();
     const path = env.PUSH_DEVICE_STORE_PATH, key = env.PUSH_DEVICE_STORE_KEY;
     this.writes = this.writes.catch(()=>undefined).then(async () => {
       const iv=randomBytes(12), cipher=createCipheriv('aes-256-gcm',Buffer.from(key,'hex'),iv);
@@ -38,14 +49,16 @@ export class PushDevices {
     });
     return this.writes;
   }
-  async register(deviceId: string, token: string, secret: string, principal: MobilePrincipal) {
+  async register(deviceId: string, token: string, secret: string, principal: MobilePrincipal):Promise<PushDevice> {
+    if(this.distributed())return this.shared(local=>local.register(deviceId,token,secret,principal));
     await this.load(); const old=this.devices.get(deviceId);
     if (old && !timingSafeEqual(Buffer.from(old.secretHash,'hex'),Buffer.from(digest(secret),'hex'))) throw new Error('DEVICE_OWNERSHIP');
     if (!old && this.devices.size>=10000) throw new Error('PUSH_CAPACITY');
     const record={deviceId,token,secretHash:digest(secret),principal,expiresAt:Date.now()+30*86400_000};
     this.devices.set(deviceId,record); await this.persist(); return record;
   }
-  async authenticate(deviceId: string, secret: string) {
+  async authenticate(deviceId: string, secret: string):Promise<PushDevice|null> {
+    if(this.distributed())return this.shared(local=>local.authenticate(deviceId,secret));
     await this.load(); const record=this.devices.get(deviceId);
     if (!record || record.expiresAt<=Date.now() || !/^[a-f0-9]{64}$/.test(secret)) return null;
     if (!timingSafeEqual(Buffer.from(record.secretHash,'hex'),Buffer.from(digest(secret),'hex'))) return null;
@@ -53,15 +66,16 @@ export class PushDevices {
     if (!principal || (principal.accountId && !await mobileAccountActive(principal.accountId))) { await this.remove(deviceId); return null; }
     return record;
   }
-  async remove(deviceId: string) { await this.load(); this.devices.delete(deviceId); await this.persist(); }
-  async revokeSession(id: string) { await this.load(); for(const [key,row] of this.devices) if(row.principal.id===id)this.devices.delete(key); await this.persist(); }
+  async remove(deviceId: string):Promise<void> {if(this.distributed())return this.shared(local=>local.remove(deviceId)); await this.load(); this.devices.delete(deviceId); await this.persist(); }
+  async revokeSession(id: string):Promise<void> {if(this.distributed())return this.shared(local=>local.revokeSession(id)); await this.load(); for(const [key,row] of this.devices) if(row.principal.id===id)this.devices.delete(key); await this.persist(); }
   async identity(record: PushDevice, roomId: string) {
     if (record.principal.identityId) return record.principal.identityId;
     if (!record.principal.accountId) return null;
     const {data,error}=await supabase.from('nc_room_identities').select('sender_id').eq('room_id',roomId).eq('account_id',record.principal.accountId).maybeSingle();
     if(error)throw error; return data?.sender_id ?? null;
   }
-  async eligible(roomId: string, targetIdentity?: string) {
+  async eligible(roomId: string, targetIdentity?: string):Promise<PushDevice[]> {
+    if(this.distributed())return this.shared(local=>local.eligible(roomId,targetIdentity));
     await this.load(); const rows: PushDevice[]=[];
     const members=new Set((await getParticipantsForRoom(roomId)).map(row=>row.sender_id).filter(id=>!targetIdentity||id===targetIdentity));
     if(!members.size)return rows;

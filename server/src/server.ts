@@ -1,3 +1,5 @@
+import {pushDevices} from './services/push.service.js';
+import {socketServerReady,closeDistributedCalls} from './sockets/distributed.js';
 import { cleanupSocialExpiry, createRoomExpirationWarnings } from './services/presence.service.js';
 import { sweepRegisteredEphemera } from './routes/match.routes.js';
 import { reconcileRoomCleanup } from './services/cleanup.service.js';
@@ -30,7 +32,7 @@ const matchJob = setInterval(() => {
 httpServer.on('error', (error: Error & { code?: string }) => {
   logger.error('startup_failed', { code: error.code }); process.exit(1);
 });
-httpServer.listen(env.PORT, env.HOST, () => { logger.info('server_started', { port: env.PORT }); if (env.BACKGROUND_CLEANUP_ENABLED === 'true') { runCleanup(); runBurnCleanup(); } });
+void socketServerReady(io).then(()=>httpServer.listen(env.PORT, env.HOST, () => { logger.info('server_started', { port: env.PORT }); if (env.BACKGROUND_CLEANUP_ENABLED === 'true') { runCleanup(); runBurnCleanup(); } })).catch(()=>{logger.error('call_coordination_startup_failed');process.exit(1);});
 let shuttingDown = false;
 const shutdown = async (exitCode = 0) => {
   if (shuttingDown) return;
@@ -41,6 +43,8 @@ const shutdown = async (exitCode = 0) => {
   await job.stop();
   await new Promise<void>(resolve => io.close(() => resolve()));
   if (httpServer.listening) await new Promise<void>(resolve => httpServer.close(() => resolve()));
+  await closeDistributedCalls(io);
+  await pushDevices.close();
   await cleanupTask;
   await burnTask;
   await supabase.removeAllChannels();

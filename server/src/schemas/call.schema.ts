@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const callRefSchema = z.strictObject({ callId: z.string().uuid(), messageId: z.string().uuid().optional() });
-export const callInviteSchema = z.strictObject({ roomCode: z.string().regex(/^[A-Z0-9]{8}$/) });
+export const callInviteSchema = z.strictObject({ roomCode: z.string().regex(/^[A-Z0-9]{8}$/),messageId:z.string().uuid().optional() });
 export const audioSdp = z.string().min(20).max(48 * 1024).refine(sdp => {
   const lines = sdp.split(/\r?\n/);
   const media = lines.filter(line => line.startsWith('m='));

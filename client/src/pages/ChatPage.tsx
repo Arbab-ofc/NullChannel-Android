@@ -27,7 +27,7 @@ import { api } from '../lib/api';
 import { useVoiceCall } from '../hooks/useVoiceCall';
 import { VoiceCallButton, VoiceCallUI } from '../components/call/VoiceCallUI';
 import { hasActiveCall } from '../lib/active-calls';
-import { nativeAndroid } from '../lib/native-calls';
+import { nativeAndroid,nativeCalls } from '../lib/native-calls';
 import { acquireMicrophone,releaseMicrophone } from '../lib/call-ownership';
 import { callIsActive } from '../lib/voice-call';
 import { useSocket } from '../hooks/useSocket';
@@ -622,6 +622,8 @@ export default function ChatPage() {
     }
     const epoch=recordingEpoch.current;
     try {
+      if(nativeAndroid()&&!(await nativeCalls.microphoneLease({owner:`record:${code}`,acquire:true})).granted){releaseMicrophone(`record:${code}`);showToast('A native call owns the microphone');return;}
+      if(epoch!==recordingEpoch.current){releaseMicrophone(`record:${code}`);return;}
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if(epoch!==recordingEpoch.current){stream.getTracks().forEach(track=>track.stop());releaseMicrophone(`record:${code}`);return;}
       const recorder = new MediaRecorder(stream);

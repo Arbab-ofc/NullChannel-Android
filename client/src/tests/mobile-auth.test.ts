@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = vi.hoisted(() => ({ values: new Map<string, string>(), post: vi.fn() }));
+const state = vi.hoisted(() => ({ values: new Map<string, string>(), post: vi.fn(),refresh:vi.fn() }));
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => true },
+  Capacitor: { isNativePlatform: () => true,getPlatform:()=> 'android' },
   registerPlugin: () => ({
+    refresh:state.refresh,
     get: async ({ key }: { key: string }) => ({ value: state.values.get(key) }),
     set: async ({ key, value }: { key: string; value: string }) => { state.values.set(key, value); },
     remove: async ({ key }: { key: string }) => { state.values.delete(key); }
@@ -28,7 +29,7 @@ const payload = (accessToken: string, refreshToken: string) => ({
 });
 
 describe('Android mobile credentials', () => {
-  beforeEach(async () => { state.values.clear(); state.post.mockReset();vi.resetModules();({clearMobileCredentials,mobileAccessToken,mobileLogin,mobileLogout,refreshMobileCredentialsBeforeExpiry,ensureMobileGuestSession,isMobileSessionEndpointUnavailable}=await import('../lib/mobile-auth')); });
+  beforeEach(async () => { state.values.clear(); state.post.mockReset();state.refresh.mockReset();state.refresh.mockImplementation(async({kind,baseUrl}:{kind:string;baseUrl:string})=>{const key=`mobile.${kind}.bundle`,old=JSON.parse(state.values.get(key)!);try{const response=await state.post(`${baseUrl}/api/mobile/auth/refresh`,null,{withCredentials:false,headers:{Authorization:`Bearer ${old.refreshToken}`}});state.values.set(key,JSON.stringify(response.data.data));return {bundle:response.data.data};}catch(error){if((error as {response?:{status:number}}).response?.status===401)return {bundle:null};throw error;}});vi.resetModules();({clearMobileCredentials,mobileAccessToken,mobileLogin,mobileLogout,refreshMobileCredentialsBeforeExpiry,ensureMobileGuestSession,isMobileSessionEndpointUnavailable}=await import('../lib/mobile-auth')); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   it('stores login tokens through the native secure store and uses the fixed HTTPS API', async () => {
@@ -48,7 +49,7 @@ describe('Android mobile credentials', () => {
     expect(state.post).toHaveBeenCalledWith('https://nullchannel.teleflow.cyou/api/mobile/auth/refresh', null, {
       withCredentials: false, headers: { Authorization: `Bearer ${credential('b')}` }
     });
-    expect(JSON.parse(state.values.get('mobile.account.bundle')!).refreshToken).toBe(credential('d'));
+    expect(state.refresh).toHaveBeenCalledWith({kind:'account',baseUrl:'https://nullchannel.teleflow.cyou'});expect(JSON.parse(state.values.get('mobile.account.bundle')!).refreshToken).toBe(credential('d'));
   });
 
   it('coalesces concurrent access-token refreshes into one rotation', async () => {

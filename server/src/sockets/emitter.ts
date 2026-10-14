@@ -8,7 +8,7 @@ export const setSocketServer = (io: Server) => {
 };
 
 export const emitRoomExpired = (roomId: string, payload: { reason: string }) => {
-  if (ioRef) getCallRegistry(ioRef).endRoom(roomId);
+  if (ioRef) void Promise.resolve(getCallRegistry(ioRef).endRoom(roomId)).catch(()=>undefined);
   ioRef?.to(roomId).emit('room-expired', payload);
   ioRef?.in(roomId).socketsLeave(roomId);
 };
@@ -37,7 +37,7 @@ export const emitMessageReactions = (
 };
 
 export const emitRoomExtended = (roomId: string, payload: { code: string; expiresAt: string; extendByMinutes: number }) => {
-  if (ioRef) getCallRegistry(ioRef).extend(roomId,payload.expiresAt);
+  if (ioRef) void Promise.resolve(getCallRegistry(ioRef).extend(roomId,payload.expiresAt)).catch(()=>undefined);
   ioRef?.to(roomId).emit('room-extended', payload);
 };
 
@@ -50,7 +50,7 @@ export const emitRoomWiped = (roomId: string, payload: { code: string; wipedMess
 };
 
 export const revokeRoomSockets = async (roomId: string, code: string, identity: string) => {
-  if (ioRef) getCallRegistry(ioRef).endRoom(roomId,identity);
+  if (ioRef) void Promise.resolve(getCallRegistry(ioRef).endRoom(roomId,identity)).catch(()=>undefined);
   for (const socket of await ioRef?.in(roomId).fetchSockets() ?? []) {
     if (socket.data.identity !== identity) continue;
     socket.emit('membership-revoked', { code });
@@ -65,8 +65,9 @@ export const onlineIdentities = async (roomId: string) => {
   return [...new Set(sockets.map(socket => String(socket.data.identity)))];
 };
 export const emitPresence = async (roomId: string) => {
-  ioRef?.to(roomId).emit('participants-updated', { roomId, online: await onlineIdentities(roomId) });
+  const io=ioRef,online=await onlineIdentities(roomId);if(io&&ioRef===io)io.to(roomId).emit('participants-updated',{roomId,online});
 };
+export const clearSocketServer=(io:Server)=>{if(ioRef===io)ioRef=null;};
 export const revokeSessionSockets = async (sessionId: string) => {
   for (const socket of await ioRef?.fetchSockets() ?? []) {
     if (socket.data.sessionId === sessionId) socket.disconnect(true);

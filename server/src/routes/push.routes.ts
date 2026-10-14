@@ -25,8 +25,8 @@ router.post('/mobile/push/devices/:deviceId/verify',async(req,res,next)=>{try{
  const record=res.locals.pushDevice;const code=String(req.body.roomCode??'');if(!/^[A-Z0-9]{8}$/.test(code)){res.status(400).end();return;}
  const room=await getRoomByCode(code),identity=room?await pushDevices.identity(record,room.id):null;
  if(!room || Date.parse(room.expires_at)<=Date.now() || !identity || !await isActiveMember(room.id,identity)){res.status(410).end();return;}
- if(req.body.callId){if(req.body.action==='end'&&currentCallRegistry()?.canControl(record.principal,String(req.body.callId))){currentCallRegistry()?.end(String(req.body.callId),'hangup');res.json(successResponse({ended:true}));return;}const invitation=currentCallRegistry()?.invitation(record.principal,String(req.body.callId));if(!invitation || invitation.roomCode!==code){res.status(410).end();return;}
-  if(req.body.action==='decline')currentCallRegistry()?.end(invitation.callId,'declined');else if(req.body.action==='ringing')currentCallRegistry()?.ringing(invitation.callId);
+ if(req.body.callId){if(req.body.action==='end'&&await currentCallRegistry()?.canControl(record.principal,String(req.body.callId))){await currentCallRegistry()?.end(String(req.body.callId),'hangup');res.json(successResponse({ended:true}));return;}const invitation=await currentCallRegistry()?.invitation(record.principal,String(req.body.callId));if(!invitation || invitation.roomCode!==code){res.status(410).end();return;}
+  if(req.body.action==='decline')await currentCallRegistry()?.end(invitation.callId,'declined');else if(req.body.action==='ringing')await currentCallRegistry()?.ringing(invitation.callId);
   res.json(successResponse(invitation));return;}
  res.json(successResponse({valid:true,expiresAt:Date.parse(room.expires_at)}));
  }catch(error){next(error);}});

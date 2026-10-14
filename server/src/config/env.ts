@@ -35,6 +35,9 @@ const envSchema = z.object({
   TURN_URLS: z.string().optional(),
   TURN_SHARED_SECRET: z.string().min(32).optional(),
   TURN_CREDENTIAL_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
+  CALL_COORDINATION_MODE:z.enum(['memory','redis']).default('memory'),
+  CALL_REDIS_URL:z.string().url().optional(),
+  CALL_REDIS_ENCRYPTION_KEY:z.string().regex(/^[a-f0-9]{64}$/).optional(),
   PUSH_ENABLED: z.enum(['true','false']).default('false'),
   FIREBASE_PROJECT_ID: z.string().optional(),
   PUSH_DEVICE_STORE_PATH: z.string().optional(),
@@ -43,6 +46,8 @@ const envSchema = z.object({
   FRIEND_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
   CLEANUP_SECRET: z.string().optional()
 }).superRefine((value, context) => {
+  if(value.CALL_COORDINATION_MODE==='redis'&&(!value.CALL_REDIS_URL||!value.CALL_REDIS_ENCRYPTION_KEY||!/^rediss?:\/\//.test(value.CALL_REDIS_URL)||value.NODE_ENV==='production'&&!value.CALL_REDIS_URL.startsWith('rediss://')))context.addIssue({code:'custom',path:['CALL_COORDINATION_MODE'],message:'Redis mode requires a Redis URL, encryption key and TLS in production.'});
+  if(value.CALL_COORDINATION_MODE==='redis'&&value.NODE_ENV==='production'&&value.CALL_REDIS_URL){try{const url=new URL(value.CALL_REDIS_URL);if(!url.username||!url.password)context.addIssue({code:'custom',path:['CALL_REDIS_URL'],message:'Production Redis requires explicit ACL credentials.'});}catch{/* URL validation reports invalid values. */}}
   if (Boolean(value.PUSH_DEVICE_STORE_PATH) !== Boolean(value.PUSH_DEVICE_STORE_KEY)) context.addIssue({code:'custom',path:['PUSH_DEVICE_STORE_PATH'],message:'Encrypted push store path and key must be configured together.'});
   if (value.NODE_ENV === 'production' && !value.MOBILE_APP_ORIGIN) {
     context.addIssue({ code: 'custom', path: ['MOBILE_APP_ORIGIN'], message: 'MOBILE_APP_ORIGIN must be explicitly configured in production.' });

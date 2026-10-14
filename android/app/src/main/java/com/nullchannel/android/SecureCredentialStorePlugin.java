@@ -33,25 +33,7 @@ public final class SecureCredentialStorePlugin extends Plugin {
             call.reject("Invalid secure credential value.");
             return;
         }
-        executor.execute(() -> {
-            try {
-                Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-                cipher.init(Cipher.ENCRYPT_MODE, loadOrCreateKey());
-                byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
-                byte[] iv = cipher.getIV();
-                byte[] packed = Arrays.copyOf(iv, iv.length + encrypted.length);
-                System.arraycopy(encrypted, 0, packed, iv.length, encrypted.length);
-                boolean saved = getContext().getSharedPreferences(PREFS, 0).edit()
-                    .putString(key, Base64.encodeToString(packed, Base64.NO_WRAP)).commit();
-                if (!saved) {
-                    call.reject("Secure storage is unavailable.");
-                    return;
-                }
-                call.resolve();
-            } catch (Exception error) {
-                call.reject("Secure storage is unavailable.");
-            }
-        });
+        executor.execute(()->{try{synchronized(NativeCallAuth.class){write(getContext(),key,value);}call.resolve();}catch(Exception error){call.reject("Secure storage is unavailable.");}});
     }
 
     @PluginMethod
@@ -61,25 +43,7 @@ public final class SecureCredentialStorePlugin extends Plugin {
             call.reject("Invalid secure credential key.");
             return;
         }
-        executor.execute(() -> {
-            try {
-                String stored = getContext().getSharedPreferences(PREFS, 0).getString(key, null);
-                JSObject result = new JSObject();
-                if (stored != null) {
-                    byte[] packed = Base64.decode(stored, Base64.NO_WRAP);
-                    if (packed.length > 12 && packed.length <= 12 + MAX_VALUE_LENGTH) {
-                        byte[] iv = Arrays.copyOfRange(packed, 0, 12);
-                        byte[] encrypted = Arrays.copyOfRange(packed, 12, packed.length);
-                        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-                        cipher.init(Cipher.DECRYPT_MODE, loadOrCreateKey(), new GCMParameterSpec(128, iv));
-                        result.put("value", new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8));
-                    }
-                }
-                call.resolve(result);
-            } catch (Exception error) {
-                call.reject("Secure storage is unavailable.");
-            }
-        });
+        executor.execute(()->{try{String value;synchronized(NativeCallAuth.class){value=read(getContext(),key);}call.resolve(new JSObject().put("value",value));}catch(Exception error){call.reject("Secure storage is unavailable.");}});
     }
 
     @PluginMethod
@@ -89,25 +53,25 @@ public final class SecureCredentialStorePlugin extends Plugin {
             call.reject("Invalid secure credential key.");
             return;
         }
-        executor.execute(() -> {
-            try {
-                boolean removed = getContext().getSharedPreferences(PREFS, 0).edit().remove(key).commit();
-                if (!removed) {
-                    call.reject("Secure storage is unavailable.");
-                    return;
-                }
-                call.resolve();
-            } catch (Exception error) {
-                call.reject("Secure storage is unavailable.");
-            }
-        });
+        executor.execute(()->{synchronized(NativeCallAuth.class){if(getContext().getSharedPreferences(PREFS,0).edit().remove(key).commit())call.resolve();else call.reject("Secure storage is unavailable.");}});
     }
 
+    static synchronized String read(android.content.Context context,String key)throws Exception {
+        String stored=context.getSharedPreferences(PREFS,0).getString(key,null);if(stored==null)return null;
+        byte[] packed=Base64.decode(stored,Base64.NO_WRAP);if(packed.length<=12||packed.length>MAX_VALUE_LENGTH+28)throw new Exception("Invalid encrypted credential");
+        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,loadOrCreateKey(),new GCMParameterSpec(128,Arrays.copyOf(packed,12)));
+        return new String(cipher.doFinal(packed,12,packed.length-12),StandardCharsets.UTF_8);
+    }
+    static synchronized void write(android.content.Context context,String key,String value)throws Exception {
+        Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,loadOrCreateKey());byte[] encrypted=cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));byte[] packed=Arrays.copyOf(cipher.getIV(),12+encrypted.length);System.arraycopy(encrypted,0,packed,12,encrypted.length);
+        if(!context.getSharedPreferences(PREFS,0).edit().putString(key,Base64.encodeToString(packed,Base64.NO_WRAP)).commit())throw new Exception("Secure storage unavailable");
+    }
+    @PluginMethod public void refresh(PluginCall call){executor.execute(()->{try{org.json.JSONObject bundle=NativeCallAuth.credentials(getContext(),call.getString("baseUrl"),call.getString("kind"),true);call.resolve(new JSObject().put("bundle",bundle==null?null:new JSObject(bundle.toString())));}catch(NativeCallAuth.Expired expired){call.resolve(new JSObject().put("bundle",null));}catch(Exception error){call.reject("Native session renewal unavailable");}});}
     private boolean validKey(String key) {
         return key != null && key.matches("[a-zA-Z0-9._-]{1,80}");
     }
 
-    private SecretKey loadOrCreateKey() throws Exception {
+    private static SecretKey loadOrCreateKey() throws Exception {
         KeyStore store = KeyStore.getInstance("AndroidKeyStore");
         store.load(null);
         java.security.Key existing = store.getKey(KEY_ALIAS, null);

@@ -1,0 +1,9 @@
+# Local development only. No remote infrastructure is provisioned.
+services:
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:6389:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    tmpfs:
+      - /data
